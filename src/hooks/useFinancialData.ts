@@ -104,6 +104,8 @@ export const useFinancialData = () => {
                 PL: Math.random() * 30 + 10,
                 Ins: Math.random() * 20 + 10,
             }),
+            timestamp: new Date().toISOString(),
+            ModelFamily: ['LLM', 'CV', 'Tabular', 'Speech'][i % 4],
         }));
 
         setCloudBill(sampleBill);
