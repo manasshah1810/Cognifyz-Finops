@@ -71,7 +71,7 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
                     headers: {
                         "Authorization": `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_API_KEY}`,
                         "Content-Type": "application/json",
-                        "HTTP-Referer": "https://cognifyz-finops.vercel.app/",
+                        "HTTP-Referer": "https://cogniify-finops.vercel.app/",
                         "X-Title": "Analytics Dashboard"
                     },
                     body: JSON.stringify({

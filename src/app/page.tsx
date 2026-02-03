@@ -365,12 +365,12 @@ export default function Dashboard() {
             <img
               src="/logo.png"
               className="w-12 h-12 object-contain"
-              alt="Cognifyz Logo"
+              alt="Cogniify Logo"
             />
           </div>
           {isSidebarOpen && (
             <div className="flex flex-col">
-              <span className="font-black text-sm tracking-[0.1em] text-white uppercase leading-none">Cognifyz Finops</span>
+              <span className="font-black text-sm tracking-[0.1em] text-white uppercase leading-none">Cogniify Finops</span>
               <span className="font-bold text-[8px] tracking-[0.2em] text-blue-400 uppercase mt-1">ML Attribution System</span>
             </div>
           )}

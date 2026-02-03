@@ -8,7 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Cognifyz Finops : ML Attribution System",
+  title: "Cogniify Finops : ML Attribution System",
   description: "Enterprise-Scale Cloud AI Model Attribution & Chargeback Dashboard",
   icons: {
     icon: "/logo.png",
