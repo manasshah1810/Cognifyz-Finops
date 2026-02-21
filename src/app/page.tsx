@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { UploadControls } from '@/components/UploadControls';
 import { CostTrendChart } from '@/components/CostTrendChart';
 import { VerticalUsage } from '@/components/VerticalUsage';
@@ -10,6 +10,7 @@ import { InitiativeModelMap } from '@/components/InitiativeModelMap';
 import { AttributionOverTime } from '@/components/AttributionOverTime';
 import { AttributionHeatmap } from '@/components/AttributionHeatmap';
 import { Chatbot } from '@/components/Chatbot';
+import Papa from 'papaparse';
 import { Wallet, PieChart, AlertCircle, Server, Database, LayoutDashboard, BarChart3, Settings, LogOut, Menu, X, Bot } from 'lucide-react';
 
 interface CloudBillRow {
@@ -46,6 +47,47 @@ export default function Dashboard() {
       else setAttributionMap(data);
     });
   };
+
+  useEffect(() => {
+    const loadDefaultData = async () => {
+      try {
+        const [billRes, mapRes] = await Promise.all([
+          fetch('/billing.csv'),
+          fetch('/map.csv')
+        ]);
+
+        if (billRes.ok) {
+          const billText = await billRes.text();
+          Papa.parse(billText, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+              if (results.data.length > 0) {
+                setCloudBill(results.data as CloudBillRow[]);
+              }
+            }
+          });
+        }
+
+        if (mapRes.ok) {
+          const mapText = await mapRes.text();
+          Papa.parse(mapText, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+              if (results.data.length > 0) {
+                setAttributionMap(results.data as AttributionMapRow[]);
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error loading default data:', error);
+      }
+    };
+
+    loadDefaultData();
+  }, []);
 
   const processedData = useMemo(() => {
     if (cloudBill.length === 0) return { stats: null, aggregations: null };
