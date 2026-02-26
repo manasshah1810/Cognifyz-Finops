@@ -10,8 +10,10 @@ import { InitiativeModelMap } from '@/components/InitiativeModelMap';
 import { AttributionOverTime } from '@/components/AttributionOverTime';
 import { AttributionHeatmap } from '@/components/AttributionHeatmap';
 import { Chatbot } from '@/components/Chatbot';
+import { Glossary } from '@/components/Glossary';
+import { CostBreakdown } from '@/components/CostBreakdown';
 import Papa from 'papaparse';
-import { Wallet, PieChart, AlertCircle, Server, Database, LayoutDashboard, BarChart3, Settings, LogOut, Menu, X, Bot } from 'lucide-react';
+import { Wallet, PieChart, AlertCircle, Server, Database, LayoutDashboard, BarChart3, Settings, LogOut, Menu, X, Bot, BookOpen } from 'lucide-react';
 
 interface CloudBillRow {
   UsageStartDate: string;
@@ -34,6 +36,11 @@ export default function Dashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('executive');
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [timeFilter, setTimeFilter] = useState<'all' | 'month' | 'week' | 'day'>('all');
+  const [initiativeFilter, setInitiativeFilter] = useState<string>('all');
+  const [familyFilter, setFamilyFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [verticalFilter, setVerticalFilter] = useState<string>('all');
   const [isPending, startTransition] = React.useTransition();
 
   const filesLoaded = {
@@ -92,8 +99,38 @@ export default function Dashboard() {
   const processedData = useMemo(() => {
     if (cloudBill.length === 0) return { stats: null, aggregations: null };
 
+    // Find min and max date for global scaling and filtering
+    let minTime = Infinity;
+    let maxTime = -Infinity;
+    for (let i = 0; i < cloudBill.length; i++) {
+      const d = cloudBill[i].UsageStartDate;
+      if (d) {
+        const t = new Date(d).getTime();
+        if (!isNaN(t)) {
+          if (t < minTime) minTime = t;
+          if (t > maxTime) maxTime = t;
+        }
+      }
+    }
+    const maxDate = maxTime === -Infinity ? new Date() : new Date(maxTime);
+    minTime = Infinity; // reset for actual filtered data min date later
+
+    const filterTime = (dateStr: string) => {
+      if (timeFilter === 'all' || !dateStr) return true;
+      const t = new Date(dateStr).getTime();
+      if (isNaN(t)) return true;
+      const diffDays = (maxDate.getTime() - t) / (1000 * 60 * 60 * 24);
+      if (timeFilter === 'day') return diffDays <= 1;
+      if (timeFilter === 'week') return diffDays <= 7;
+      if (timeFilter === 'month') return diffDays <= 30;
+      return true;
+    };
+
+    const filteredBill = cloudBill.filter(b => filterTime(b.UsageStartDate));
+    const filteredMap = attributionMap.filter(m => filterTime(m.timestamp));
+
     const attributionLookup = new Map<string, AttributionMapRow[]>();
-    attributionMap.forEach(row => {
+    filteredMap.forEach(row => {
       if (!attributionLookup.has(row.ModelName)) {
         attributionLookup.set(row.ModelName, []);
       }
@@ -124,17 +161,37 @@ export default function Dashboard() {
     // Attribution Map (Table) - We'll keep a summarized version for the table
     const tableData: any[] = [];
 
-    // Find min date for drift and trend
-    let minTime = Infinity;
-    for (let i = 0; i < cloudBill.length; i++) {
-      const d = cloudBill[i].UsageStartDate;
+    // Breakdown structures
+    const deptCost: Record<string, number> = {};
+    const teamCost: Record<string, number> = {};
+
+    const getDept = (init: string) => {
+      if (init.includes('Marketing') || init.includes('Growth')) return 'Growth & Marketing';
+      if (init.includes('Risk') || init.includes('Fraud')) return 'Risk Management';
+      if (init.includes('Support') || init.includes('Service')) return 'Customer Success';
+      if (init.includes('Sales')) return 'Sales Operations';
+      return 'Engineering & Core Platform';
+    }
+
+    const getTeam = (init: string) => {
+      if (init.includes('Marketing') || init.includes('Growth')) return 'Acquisition Team';
+      if (init.includes('Risk')) return 'Credit Policy Team';
+      if (init.includes('Fraud')) return 'Fraud Prevention Unit';
+      if (init.includes('Support')) return 'Helpdesk GenAI Team';
+      if (init.includes('Claims')) return 'Claims Automation Pod';
+      return 'Core AI Operations';
+    }
+
+    // Find new min date for drift and trend from filtered data
+    for (let i = 0; i < filteredBill.length; i++) {
+      const d = filteredBill[i].UsageStartDate;
       if (d) {
         const t = new Date(d).getTime();
         if (!isNaN(t) && t < minTime) minTime = t;
       }
     }
-    for (let i = 0; i < attributionMap.length; i++) {
-      const d = attributionMap[i].timestamp;
+    for (let i = 0; i < filteredMap.length; i++) {
+      const d = filteredMap[i].timestamp;
       if (d) {
         const t = new Date(d).getTime();
         if (!isNaN(t) && t < minTime) minTime = t;
@@ -148,7 +205,7 @@ export default function Dashboard() {
     const attributionTrendBuckets: Record<string, Record<string, { sum: number; count: number }>> = {};
 
     // Process attributionMap for trend independently
-    attributionMap.forEach(attr => {
+    filteredMap.forEach(attr => {
       const dateStr = attr.timestamp;
       if (!dateStr) return;
 
@@ -175,8 +232,8 @@ export default function Dashboard() {
       }
     });
 
-    for (let i = 0; i < cloudBill.length; i++) {
-      const bill = cloudBill[i];
+    for (let i = 0; i < filteredBill.length; i++) {
+      const bill = filteredBill[i];
       const cost = typeof bill.UnblendedCost === 'number' ? bill.UnblendedCost : parseFloat(String(bill.UnblendedCost || '0'));
       totalSpend += cost;
 
@@ -233,6 +290,11 @@ export default function Dashboard() {
             verticalInitiativeMap[init].CC += ccCost;
             verticalInitiativeMap[init].PL += plCost;
             verticalInitiativeMap[init].Ins += insCost;
+
+            const dept = getDept(init);
+            const team = getTeam(init);
+            deptCost[dept] = (deptCost[dept] || 0) + attributedCost;
+            teamCost[team] = (teamCost[team] || 0) + attributedCost;
           }
 
           // Drift
@@ -325,6 +387,16 @@ export default function Dashboard() {
       })
     };
 
+    const costBreakdownData = {
+      verticalData: [
+        { name: 'Credit Card', value: totalCC },
+        { name: 'Personal Loans', value: totalPL },
+        { name: 'Insurance', value: totalIns }
+      ].sort((a, b) => b.value - a.value),
+      departmentData: Object.entries(deptCost).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value),
+      teamData: Object.entries(teamCost).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10)
+    };
+
     const modelStats = Object.entries(modelInitiativeStats).map(([name, owners]) => {
       const averagedOwners: Record<string, number> = {};
       let maxAttr = 0, ownerCount = 0;
@@ -371,10 +443,61 @@ export default function Dashboard() {
       }
     };
 
-    return { stats, aggregations: { costTrendData, verticalUsageData, modelPortfolioData, attributionData, initiativeSet: Array.from(initiativeSet).slice(0, 5) } };
-  }, [cloudBill, attributionMap]);
+    return { stats, aggregations: { costTrendData, verticalUsageData, costBreakdownData, modelPortfolioData, attributionData, initiativeSet: Array.from(initiativeSet).slice(0, 5) } };
+  }, [cloudBill, attributionMap, timeFilter]);
 
   const { stats, aggregations } = processedData;
+
+  const filteredDisplayData = useMemo(() => {
+    if (!aggregations || !stats) return { filteredAggregations: null };
+
+    // Attribution
+    const filteredTableData = initiativeFilter === 'all'
+      ? aggregations.attributionData.tableData
+      : aggregations.attributionData.tableData.filter((r: any) => r.Initiative === initiativeFilter);
+
+    const filteredChartData = initiativeFilter === 'all'
+      ? aggregations.attributionData.chartData
+      : aggregations.attributionData.chartData.map((d: any) => ({
+        date: d.date,
+        [initiativeFilter]: d[initiativeFilter]
+      }));
+
+    // Portfolio
+    const filteredModelStats = aggregations.modelPortfolioData.modelStats.filter((m: any) => {
+      if (familyFilter !== 'all' && m.family !== familyFilter) return false;
+      if (typeFilter === 'dedicated' && m.type !== 'Dedicated') return false;
+      if (typeFilter === 'shared' && m.type === 'Dedicated') return false;
+      return true;
+    });
+
+    const portKpis = {
+      dedicated: filteredModelStats.filter((m: any) => m.type === 'Dedicated').length,
+      primary: filteredModelStats.filter((m: any) => m.type === 'Shared-Primary').length,
+      balanced: filteredModelStats.filter((m: any) => m.type === 'Shared-Balanced').length,
+      dedicatedPct: (filteredModelStats.filter((m: any) => m.type === 'Dedicated').length / (filteredModelStats.length || 1)) * 100,
+      primaryPct: (filteredModelStats.filter((m: any) => m.type === 'Shared-Primary').length / (filteredModelStats.length || 1)) * 100,
+      balancedPct: (filteredModelStats.filter((m: any) => m.type === 'Shared-Balanced').length / (filteredModelStats.length || 1)) * 100,
+    };
+
+    return {
+      filteredAggregations: {
+        ...aggregations,
+        attributionData: {
+          ...aggregations.attributionData,
+          tableData: filteredTableData,
+          chartData: filteredChartData
+        },
+        modelPortfolioData: {
+          ...aggregations.modelPortfolioData,
+          modelStats: filteredModelStats,
+          kpis: portKpis
+        }
+      }
+    };
+  }, [aggregations, stats, initiativeFilter, familyFilter, typeFilter]);
+
+  const { filteredAggregations } = filteredDisplayData;
 
   const ownershipData = useMemo(() => {
     if (!stats) return { dedicated: 0, shared: 0, unassigned: 0 };
@@ -393,7 +516,25 @@ export default function Dashboard() {
     { id: 'attribution', label: 'Initiative Attribution', icon: <Database size={18} /> },
     { id: 'portfolio', label: 'Model Portfolio', icon: <BarChart3 size={18} /> },
     { id: 'vertical', label: 'Vertical Usage', icon: <Settings size={18} /> },
+    { id: 'glossary', label: 'Glossary', icon: <BookOpen size={18} /> }
   ];
+
+  const renderTimeFilter = () => (
+    <div className="flex items-center gap-3">
+      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Time:</span>
+      <div className="flex bg-[#1e293b] rounded-xl p-1 border border-slate-700">
+        {['all', 'month', 'week', 'day'].map((tf) => (
+          <button
+            key={tf}
+            onClick={() => setTimeFilter(tf as any)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors ${timeFilter === tf ? 'bg-blue-500 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+          >
+            {tf}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex h-screen bg-[#020617] text-slate-200 overflow-hidden font-sans">
@@ -506,6 +647,16 @@ export default function Dashboard() {
 
               {activeTab === 'executive' && (
                 <div className="space-y-8">
+                  {/* Page Filter Bar */}
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#0f172a] border border-slate-800 p-4 rounded-xl shadow-xl gap-4">
+                    <div>
+                      <h2 className="text-sm font-bold text-white uppercase tracking-widest">Executive filters</h2>
+                    </div>
+                    <div className="flex items-center gap-4 flex-wrap">
+                      {renderTimeFilter()}
+                    </div>
+                  </div>
+
                   {/* KPIs */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div className="kpi-card glow-blue">
@@ -555,22 +706,83 @@ export default function Dashboard() {
                       <OwnershipDonut data={ownershipData} />
                     </div>
                   </div>
+                  <CostBreakdown
+                    verticalData={aggregations.costBreakdownData.verticalData}
+                    departmentData={aggregations.costBreakdownData.departmentData}
+                    teamData={aggregations.costBreakdownData.teamData}
+                  />
                   <VerticalUsage data={aggregations.verticalUsageData} />
                 </div>
               )}
 
-              {activeTab === 'portfolio' && (
-                <ModelPortfolio data={aggregations.modelPortfolioData} />
+              {activeTab === 'portfolio' && filteredAggregations && (
+                <div className="space-y-8">
+                  {/* Page Filter Bar */}
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#0f172a] border border-slate-800 p-4 rounded-xl shadow-xl gap-4">
+                    <div>
+                      <h2 className="text-sm font-bold text-white uppercase tracking-widest">Portfolio filters</h2>
+                    </div>
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Family:</span>
+                        <select
+                          value={familyFilter}
+                          onChange={(e) => setFamilyFilter(e.target.value)}
+                          className="bg-[#1e293b] border border-slate-700 text-xs font-bold text-slate-300 uppercase tracking-wider rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500"
+                        >
+                          {aggregations.attributionData.families.map((f: string) => (
+                            <option key={f} value={f === 'All' ? 'all' : f}>{f}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Type:</span>
+                        <select
+                          value={typeFilter}
+                          onChange={(e) => setTypeFilter(e.target.value)}
+                          className="bg-[#1e293b] border border-slate-700 text-xs font-bold text-slate-300 uppercase tracking-wider rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500"
+                        >
+                          <option value="all">All Types</option>
+                          <option value="dedicated">Dedicated</option>
+                          <option value="shared">Shared</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <ModelPortfolio data={filteredAggregations.modelPortfolioData} />
+                </div>
               )}
 
-              {activeTab === 'attribution' && (
+              {activeTab === 'attribution' && filteredAggregations && (
                 <div className="space-y-8">
+                  {/* Page Filter Bar */}
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#0f172a] border border-slate-800 p-4 rounded-xl shadow-xl gap-4">
+                    <div>
+                      <h2 className="text-sm font-bold text-white uppercase tracking-widest">Attribution filters</h2>
+                    </div>
+                    <div className="flex items-center gap-4 flex-wrap">
+                      {renderTimeFilter()}
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Initiative:</span>
+                        <select
+                          value={initiativeFilter}
+                          onChange={(e) => setInitiativeFilter(e.target.value)}
+                          className="bg-[#1e293b] border border-slate-700 text-xs font-bold text-slate-300 uppercase tracking-wider rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500"
+                        >
+                          <option value="all">All Initiatives</option>
+                          {aggregations.attributionData.initiatives.map((i: string) => (
+                            <option key={i} value={i}>{i}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
                   <InitiativeModelMap
-                    tableData={aggregations.attributionData.tableData}
+                    tableData={filteredAggregations.attributionData.tableData}
                     families={aggregations.attributionData.families}
                   />
                   <AttributionOverTime
-                    chartData={aggregations.attributionData.chartData}
+                    chartData={filteredAggregations.attributionData.chartData}
                     initiatives={aggregations.attributionData.initiatives}
                   />
                   <AttributionHeatmap matrix={aggregations.attributionData.heatmapMatrix} />
@@ -579,9 +791,34 @@ export default function Dashboard() {
 
               {activeTab === 'vertical' && (
                 <div className="space-y-8">
+                  {/* Page Filter Bar */}
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#0f172a] border border-slate-800 p-4 rounded-xl shadow-xl gap-4">
+                    <div>
+                      <h2 className="text-sm font-bold text-white uppercase tracking-widest">Vertical filters</h2>
+                    </div>
+                    <div className="flex items-center gap-4 flex-wrap">
+                      {renderTimeFilter()}
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Vertical:</span>
+                        <select
+                          value={verticalFilter}
+                          onChange={(e) => setVerticalFilter(e.target.value)}
+                          className="bg-[#1e293b] border border-slate-700 text-xs font-bold text-slate-300 uppercase tracking-wider rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500"
+                        >
+                          <option value="all">All Verticals</option>
+                          <option value="cc">Credit Card</option>
+                          <option value="pl">Personal Loans</option>
+                          <option value="ins">Insurance</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
                   <VerticalUsage data={aggregations.verticalUsageData} />
-
                 </div>
+              )}
+
+              {activeTab === 'glossary' && (
+                <Glossary />
               )}
             </div>
           )}
