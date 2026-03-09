@@ -13,7 +13,7 @@ import { Chatbot } from '@/components/Chatbot';
 import { Glossary } from '@/components/Glossary';
 import { CostBreakdown } from '@/components/CostBreakdown';
 import Papa from 'papaparse';
-import { Wallet, PieChart, AlertCircle, Server, Database, LayoutDashboard, BarChart3, Settings, LogOut, Menu, X, Bot, BookOpen } from 'lucide-react';
+import { Wallet, PieChart, AlertCircle, Server, Database, LayoutDashboard, BarChart3, Settings, LogOut, Menu, X, Bot, BookOpen, Search } from 'lucide-react';
 
 interface CloudBillRow {
   UsageStartDate: string;
@@ -36,11 +36,13 @@ export default function Dashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('executive');
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [timeFilter, setTimeFilter] = useState<'all' | 'month' | 'week' | 'day'>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [initiativeFilter, setInitiativeFilter] = useState<string>('all');
   const [familyFilter, setFamilyFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [verticalFilter, setVerticalFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [isPending, startTransition] = React.useTransition();
 
   const filesLoaded = {
@@ -70,7 +72,17 @@ export default function Dashboard() {
             skipEmptyLines: true,
             complete: (results) => {
               if (results.data.length > 0) {
-                setCloudBill(results.data as CloudBillRow[]);
+                const data = results.data as CloudBillRow[];
+                setCloudBill(data);
+
+                // Set initial dates based on data
+                const dates = data.map(d => new Date(d.UsageStartDate).getTime()).filter(t => !isNaN(t));
+                if (dates.length > 0) {
+                  const minDate = new Date(Math.min(...dates)).toISOString().split('T')[0];
+                  const maxDate = new Date(Math.max(...dates)).toISOString().split('T')[0];
+                  setStartDate(minDate);
+                  setEndDate(maxDate);
+                }
               }
             }
           });
@@ -116,18 +128,30 @@ export default function Dashboard() {
     minTime = Infinity; // reset for actual filtered data min date later
 
     const filterTime = (dateStr: string) => {
-      if (timeFilter === 'all' || !dateStr) return true;
+      if (!dateStr) return true;
       const t = new Date(dateStr).getTime();
       if (isNaN(t)) return true;
-      const diffDays = (maxDate.getTime() - t) / (1000 * 60 * 60 * 24);
-      if (timeFilter === 'day') return diffDays <= 1;
-      if (timeFilter === 'week') return diffDays <= 7;
-      if (timeFilter === 'month') return diffDays <= 30;
-      return true;
+
+      const start = startDate ? new Date(startDate).getTime() : -Infinity;
+      // Set end to end of day
+      const end = endDate ? new Date(endDate).getTime() + (24 * 60 * 60 * 1000 - 1) : Infinity;
+
+      return t >= start && t <= end;
     };
 
-    const filteredBill = cloudBill.filter(b => filterTime(b.UsageStartDate));
-    const filteredMap = attributionMap.filter(m => filterTime(m.timestamp));
+    const filterSearch = (item: any) => {
+      if (!searchQuery) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        item.ResourceID?.toLowerCase().includes(query) ||
+        item.ModelName?.toLowerCase().includes(query) ||
+        item.Initiative?.toLowerCase().includes(query) ||
+        item.ModelFamily?.toLowerCase().includes(query)
+      );
+    };
+
+    const filteredBill = cloudBill.filter(b => filterTime(b.UsageStartDate) && filterSearch(b));
+    const filteredMap = attributionMap.filter(m => filterTime(m.timestamp) && filterSearch(m));
 
     const attributionLookup = new Map<string, AttributionMapRow[]>();
     filteredMap.forEach(row => {
@@ -444,7 +468,7 @@ export default function Dashboard() {
     };
 
     return { stats, aggregations: { costTrendData, verticalUsageData, costBreakdownData, modelPortfolioData, attributionData, initiativeSet: Array.from(initiativeSet).slice(0, 5) } };
-  }, [cloudBill, attributionMap, timeFilter]);
+  }, [cloudBill, attributionMap, startDate, endDate]);
 
   const { stats, aggregations } = processedData;
 
@@ -495,7 +519,7 @@ export default function Dashboard() {
         }
       }
     };
-  }, [aggregations, stats, initiativeFilter, familyFilter, typeFilter]);
+  }, [aggregations, stats, initiativeFilter, familyFilter, typeFilter, searchQuery]);
 
   const { filteredAggregations } = filteredDisplayData;
 
@@ -519,20 +543,151 @@ export default function Dashboard() {
     { id: 'glossary', label: 'Glossary', icon: <BookOpen size={18} /> }
   ];
 
-  const renderTimeFilter = () => (
-    <div className="flex items-center gap-3">
-      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Time:</span>
-      <div className="flex bg-[#1e293b] rounded-xl p-1 border border-slate-700">
-        {['all', 'month', 'week', 'day'].map((tf) => (
-          <button
-            key={tf}
-            onClick={() => setTimeFilter(tf as any)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors ${timeFilter === tf ? 'bg-blue-500 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
-          >
-            {tf}
-          </button>
+  const renderActiveChips = () => {
+    const chips = [];
+    if (initiativeFilter !== 'all') chips.push({ label: `Initiative: ${initiativeFilter}`, clear: () => setInitiativeFilter('all') });
+    if (familyFilter !== 'all') chips.push({ label: `Family: ${familyFilter}`, clear: () => setFamilyFilter('all') });
+    if (typeFilter !== 'all') chips.push({ label: `Type: ${typeFilter}`, clear: () => setTypeFilter('all') });
+    if (verticalFilter !== 'all') chips.push({ label: `Segment: ${verticalFilter}`, clear: () => setVerticalFilter('all') });
+    if (searchQuery) chips.push({ label: `Search: ${searchQuery}`, clear: () => setSearchQuery('') });
+
+    if (chips.length === 0) return null;
+
+    return (
+      <div className="flex flex-wrap gap-2 mb-6 animate-in fade-in slide-in-from-top-2 duration-300">
+        {chips.map((chip, idx) => (
+          <div key={idx} className="flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-full">
+            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">{chip.label}</span>
+            <button onClick={chip.clear} className="text-blue-400/50 hover:text-blue-400 transition-colors">
+              <X size={12} strokeWidth={3} />
+            </button>
+          </div>
         ))}
+        <button
+          onClick={() => {
+            setInitiativeFilter('all'); setFamilyFilter('all'); setTypeFilter('all'); setVerticalFilter('all'); setSearchQuery('');
+          }}
+          className="text-[10px] font-bold text-slate-500 hover:text-slate-300 uppercase tracking-wider px-2"
+        >
+          Clear All
+        </button>
       </div>
+    );
+  };
+
+  const renderGlobalFilters = () => (
+    <div className="space-y-4 mb-8">
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4 bg-[#0f172a]/80 backdrop-blur-xl border border-slate-800/50 p-4 lg:p-2 pl-4 lg:pl-6 rounded-[2rem] shadow-2xl relative z-30">
+        {/* Search Input */}
+        <div className="flex-1 flex items-center gap-3 min-w-[240px]">
+          <Search size={18} className="text-slate-500" />
+          <input
+            type="text"
+            placeholder="Search models, initiatives, or families..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-transparent border-none text-sm font-medium text-slate-200 placeholder:text-slate-600 focus:ring-0"
+          />
+        </div>
+
+        <div className="hidden lg:block h-8 w-[1px] bg-slate-800/50 mx-2" />
+
+        {/* Action Controls */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Date Picker Group */}
+          <div className="flex items-center bg-slate-900/50 rounded-2xl border border-slate-800 p-1 group hover:border-blue-500/30 transition-all">
+            <div className="flex items-center px-3 py-1.5 gap-2 border-r border-slate-800">
+              <span className="text-[10px] font-black text-slate-500 uppercase">From</span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-transparent border-none text-[10px] font-bold text-slate-300 focus:ring-0 p-0 w-24 [color-scheme:dark]"
+              />
+            </div>
+            <div className="flex items-center px-3 py-1.5 gap-2">
+              <span className="text-[10px] font-black text-slate-500 uppercase">To</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-transparent border-none text-[10px] font-bold text-slate-300 focus:ring-0 p-0 w-24 [color-scheme:dark]"
+              />
+            </div>
+          </div>
+
+          {/* Dynamic Selects */}
+          {activeTab === 'attribution' && (
+            <div className="relative group">
+              <select
+                value={initiativeFilter}
+                onChange={(e) => setInitiativeFilter(e.target.value)}
+                className="appearance-none bg-[#1e293b] border border-slate-700 hover:border-blue-500/50 text-[10px] font-bold text-slate-300 uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-lg"
+              >
+                <option value="all">Every Initiative</option>
+                {aggregations?.attributionData.initiatives.map((i: string) => (
+                  <option key={i} value={i}>{i}</option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><Settings size={12} /></div>
+            </div>
+          )}
+
+          {activeTab === 'portfolio' && (
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <select
+                  value={familyFilter}
+                  onChange={(e) => setFamilyFilter(e.target.value)}
+                  className="appearance-none bg-[#1e293b] border border-slate-700 hover:border-blue-500/50 text-[10px] font-bold text-slate-300 uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-lg"
+                >
+                  {aggregations?.attributionData.families.map((f: string) => (
+                    <option key={f} value={f === 'All' ? 'all' : f}>{f}</option>
+                  ))}
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><Database size={12} /></div>
+              </div>
+              <div className="relative">
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="appearance-none bg-[#1e293b] border border-slate-700 hover:border-blue-500/50 text-[10px] font-bold text-slate-300 uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-lg"
+                >
+                  <option value="all">Global Type</option>
+                  <option value="dedicated">Dedicated Only</option>
+                  <option value="shared">Shared Models</option>
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><PieChart size={12} /></div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'vertical' && (
+            <div className="relative">
+              <select
+                value={verticalFilter}
+                onChange={(e) => setVerticalFilter(e.target.value)}
+                className="appearance-none bg-[#1e293b] border border-slate-700 hover:border-blue-500/50 text-[10px] font-bold text-slate-300 uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-lg"
+              >
+                <option value="all">All Segments</option>
+                <option value="cc">Credit Card</option>
+                <option value="pl">Personal Loans</option>
+                <option value="ins">Insurance</option>
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><LayoutDashboard size={12} /></div>
+            </div>
+          )}
+
+          {/* Refresh/Reset (Visual only) */}
+          <button
+            className="p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl transition-all shadow-xl shadow-blue-500/20 active:scale-95 group"
+            onClick={() => { }}
+          >
+            <Settings size={16} className="group-hover:rotate-90 transition-transform duration-500" />
+          </button>
+        </div>
+      </div>
+      {renderActiveChips()}
     </div>
   );
 
@@ -647,15 +802,7 @@ export default function Dashboard() {
 
               {activeTab === 'executive' && (
                 <div className="space-y-8">
-                  {/* Page Filter Bar */}
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#0f172a] border border-slate-800 p-4 rounded-xl shadow-xl gap-4">
-                    <div>
-                      <h2 className="text-sm font-bold text-white uppercase tracking-widest">Executive filters</h2>
-                    </div>
-                    <div className="flex items-center gap-4 flex-wrap">
-                      {renderTimeFilter()}
-                    </div>
-                  </div>
+                  {renderGlobalFilters()}
 
                   {/* KPIs */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -717,66 +864,14 @@ export default function Dashboard() {
 
               {activeTab === 'portfolio' && filteredAggregations && (
                 <div className="space-y-8">
-                  {/* Page Filter Bar */}
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#0f172a] border border-slate-800 p-4 rounded-xl shadow-xl gap-4">
-                    <div>
-                      <h2 className="text-sm font-bold text-white uppercase tracking-widest">Portfolio filters</h2>
-                    </div>
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Family:</span>
-                        <select
-                          value={familyFilter}
-                          onChange={(e) => setFamilyFilter(e.target.value)}
-                          className="bg-[#1e293b] border border-slate-700 text-xs font-bold text-slate-300 uppercase tracking-wider rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500"
-                        >
-                          {aggregations.attributionData.families.map((f: string) => (
-                            <option key={f} value={f === 'All' ? 'all' : f}>{f}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Type:</span>
-                        <select
-                          value={typeFilter}
-                          onChange={(e) => setTypeFilter(e.target.value)}
-                          className="bg-[#1e293b] border border-slate-700 text-xs font-bold text-slate-300 uppercase tracking-wider rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500"
-                        >
-                          <option value="all">All Types</option>
-                          <option value="dedicated">Dedicated</option>
-                          <option value="shared">Shared</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
+                  {renderGlobalFilters()}
                   <ModelPortfolio data={filteredAggregations.modelPortfolioData} />
                 </div>
               )}
 
               {activeTab === 'attribution' && filteredAggregations && (
                 <div className="space-y-8">
-                  {/* Page Filter Bar */}
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#0f172a] border border-slate-800 p-4 rounded-xl shadow-xl gap-4">
-                    <div>
-                      <h2 className="text-sm font-bold text-white uppercase tracking-widest">Attribution filters</h2>
-                    </div>
-                    <div className="flex items-center gap-4 flex-wrap">
-                      {renderTimeFilter()}
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Initiative:</span>
-                        <select
-                          value={initiativeFilter}
-                          onChange={(e) => setInitiativeFilter(e.target.value)}
-                          className="bg-[#1e293b] border border-slate-700 text-xs font-bold text-slate-300 uppercase tracking-wider rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500"
-                        >
-                          <option value="all">All Initiatives</option>
-                          {aggregations.attributionData.initiatives.map((i: string) => (
-                            <option key={i} value={i}>{i}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
+                  {renderGlobalFilters()}
                   <InitiativeModelMap
                     tableData={filteredAggregations.attributionData.tableData}
                     families={aggregations.attributionData.families}
@@ -791,28 +886,7 @@ export default function Dashboard() {
 
               {activeTab === 'vertical' && (
                 <div className="space-y-8">
-                  {/* Page Filter Bar */}
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#0f172a] border border-slate-800 p-4 rounded-xl shadow-xl gap-4">
-                    <div>
-                      <h2 className="text-sm font-bold text-white uppercase tracking-widest">Vertical filters</h2>
-                    </div>
-                    <div className="flex items-center gap-4 flex-wrap">
-                      {renderTimeFilter()}
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Vertical:</span>
-                        <select
-                          value={verticalFilter}
-                          onChange={(e) => setVerticalFilter(e.target.value)}
-                          className="bg-[#1e293b] border border-slate-700 text-xs font-bold text-slate-300 uppercase tracking-wider rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500"
-                        >
-                          <option value="all">All Verticals</option>
-                          <option value="cc">Credit Card</option>
-                          <option value="pl">Personal Loans</option>
-                          <option value="ins">Insurance</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
+                  {renderGlobalFilters()}
                   <VerticalUsage data={aggregations.verticalUsageData} />
                 </div>
               )}
