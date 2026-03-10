@@ -26,8 +26,12 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
     const [aiRecommendation, setAiRecommendation] = useState<{ problem: string[], solution: string[] } | null>(null);
     const [isRecommendationLoading, setIsRecommendationLoading] = useState(false);
     const [riskSearchQuery, setRiskSearchQuery] = useState('');
+    const [riskFamilyFilter, setRiskFamilyFilter] = useState('All');
+    const [riskTypeFilter, setRiskTypeFilter] = useState('All');
     const [riskCurrentPage, setRiskCurrentPage] = useState(1);
     const itemsPerPage = 10;
+
+    // ... logic below for fetchRecommendation remains unchanged ...
 
     const fetchRecommendation = async (model: any) => {
         setIsRecommendationLoading(true);
@@ -135,8 +139,9 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
     const highRiskModels = modelStats.filter(m =>
         m.ownerCount >= 3 &&
         m.maxAttr <= 40 &&
-        (m.name.toLowerCase().includes(riskSearchQuery.toLowerCase()) ||
-            m.family.toLowerCase().includes(riskSearchQuery.toLowerCase()))
+        (m.name.toLowerCase().includes(riskSearchQuery.toLowerCase()) || m.family.toLowerCase().includes(riskSearchQuery.toLowerCase())) &&
+        (riskFamilyFilter === 'All' || m.family === riskFamilyFilter) &&
+        (riskTypeFilter === 'All' || m.type === riskTypeFilter)
     );
 
     const riskTotalPages = Math.ceil(highRiskModels.length / itemsPerPage);
@@ -233,22 +238,43 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
             )}
 
             {activeSubTab === 'mix' && (
-                <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-6 shadow-2xl h-[500px]">
-                    <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-6">ModelFamily Attribution Mix</h3>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={familyMixData} margin={{ top: 10, right: 10, left: 10, bottom: 40 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                            <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-                            <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-                            <Tooltip
-                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', color: '#f8fafc' }}
-                                itemStyle={{ fontSize: '11px', fontWeight: '500' }}
-                            />
-                            {initiatives.map((init, i) => (
-                                <Bar key={init} dataKey={init} stackId="a" fill={colors[i % colors.length]} radius={i === initiatives.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
-                            ))}
-                        </BarChart>
-                    </ResponsiveContainer>
+                <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-6 shadow-2xl">
+                    <div className="flex justify-between items-start mb-4">
+                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">Model Family Attribution Mix</h3>
+                        <div className="relative group/info">
+                            <Info size={16} className="text-slate-500 hover:text-blue-400 cursor-help transition-colors" />
+                            <div className="absolute right-0 top-6 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-10 text-[10px] text-slate-300 leading-relaxed font-normal normal-case tracking-normal">
+                                <p className="font-bold text-blue-400 mb-1">Chart Information</p>
+                                Visualizes the composition of cost attribution for different model families across several business initiatives.
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex h-[400px]">
+                        <div className="flex items-center -mr-2">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest -rotate-90 whitespace-nowrap">Attribution Value</span>
+                        </div>
+                        <div className="flex-1 flex flex-col">
+                            <div className="flex-1">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={familyMixData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                        <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
+                                        <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} width={40} />
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', color: '#f8fafc' }}
+                                            itemStyle={{ fontSize: '11px', fontWeight: '500' }}
+                                        />
+                                        {initiatives.map((init, i) => (
+                                            <Bar key={init} dataKey={init} stackId="a" fill={colors[i % colors.length]} radius={i === initiatives.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+                                        ))}
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="text-center mt-1">
+                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Model Family</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -263,18 +289,46 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
                                     <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Models with ≥3 initiatives and no single owner &gt;40%</p>
                                 </div>
                             </div>
-                            <div className="relative group max-w-xs w-full">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={14} />
-                                <input
-                                    type="text"
-                                    placeholder="Search models or families..."
-                                    value={riskSearchQuery}
+                            <div className="flex items-center gap-3 w-full md:w-auto">
+                                <div className="relative group min-w-[200px]">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={14} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search models or families..."
+                                        value={riskSearchQuery}
+                                        onChange={(e) => {
+                                            setRiskSearchQuery(e.target.value);
+                                            setRiskCurrentPage(1);
+                                        }}
+                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 pl-9 pr-4 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all"
+                                    />
+                                </div>
+                                <select
+                                    value={riskFamilyFilter}
                                     onChange={(e) => {
-                                        setRiskSearchQuery(e.target.value);
+                                        setRiskFamilyFilter(e.target.value);
                                         setRiskCurrentPage(1);
                                     }}
-                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 pl-9 pr-4 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all"
-                                />
+                                    className="bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-blue-500/50 cursor-pointer"
+                                >
+                                    <option value="All">All Families</option>
+                                    {Array.from(new Set(modelStats.map(m => m.family))).map(f => (
+                                        <option key={String(f)} value={String(f)}>{String(f)}</option>
+                                    ))}
+                                </select>
+                                <select
+                                    value={riskTypeFilter}
+                                    onChange={(e) => {
+                                        setRiskTypeFilter(e.target.value);
+                                        setRiskCurrentPage(1);
+                                    }}
+                                    className="bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-blue-500/50 cursor-pointer"
+                                >
+                                    <option value="All">All Types</option>
+                                    <option value="Dedicated">Dedicated</option>
+                                    <option value="Shared-Primary">Shared-Primary</option>
+                                    <option value="Shared-Balanced">Shared-Balanced</option>
+                                </select>
                             </div>
                         </div>
                         <div className="overflow-x-auto">

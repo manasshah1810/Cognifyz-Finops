@@ -476,9 +476,11 @@ export default function Dashboard() {
     if (!aggregations || !stats) return { filteredAggregations: null };
 
     // Attribution
-    const filteredTableData = initiativeFilter === 'all'
-      ? aggregations.attributionData.tableData
-      : aggregations.attributionData.tableData.filter((r: any) => r.Initiative === initiativeFilter);
+    const filteredTableData = aggregations.attributionData.tableData.filter((r: any) => {
+      if (initiativeFilter !== 'all' && r.Initiative !== initiativeFilter) return false;
+      if (familyFilter !== 'all' && r.ModelFamily !== familyFilter) return false;
+      return true;
+    });
 
     const filteredChartData = initiativeFilter === 'all'
       ? aggregations.attributionData.chartData
@@ -492,6 +494,7 @@ export default function Dashboard() {
       if (familyFilter !== 'all' && m.family !== familyFilter) return false;
       if (typeFilter === 'dedicated' && m.type !== 'Dedicated') return false;
       if (typeFilter === 'shared' && m.type === 'Dedicated') return false;
+      if (initiativeFilter !== 'all' && m.owners && m.owners[initiativeFilter] === undefined) return false;
       return true;
     });
 
@@ -617,66 +620,60 @@ export default function Dashboard() {
           </div>
 
           {/* Dynamic Selects */}
-          {activeTab === 'attribution' && (
-            <div className="relative group">
-              <select
-                value={initiativeFilter}
-                onChange={(e) => setInitiativeFilter(e.target.value)}
-                className="appearance-none bg-[#1e293b] border border-slate-700 hover:border-blue-500/50 text-[10px] font-bold text-slate-300 uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-lg"
-              >
-                <option value="all">Every Initiative</option>
-                {aggregations?.attributionData.initiatives.map((i: string) => (
-                  <option key={i} value={i}>{i}</option>
-                ))}
-              </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><Settings size={12} /></div>
-            </div>
-          )}
+          {/* Dynamic Selects */}
+          <div className="relative group">
+            <select
+              value={initiativeFilter}
+              onChange={(e) => setInitiativeFilter(e.target.value)}
+              className="appearance-none bg-[#1e293b] border border-slate-700 hover:border-blue-500/50 text-[10px] font-bold text-slate-300 uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-lg"
+            >
+              <option value="all">Every Initiative</option>
+              {aggregations?.attributionData.initiatives.map((i: string) => (
+                <option key={i} value={i}>{i}</option>
+              ))}
+            </select>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><Settings size={12} /></div>
+          </div>
 
-          {activeTab === 'portfolio' && (
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <select
-                  value={familyFilter}
-                  onChange={(e) => setFamilyFilter(e.target.value)}
-                  className="appearance-none bg-[#1e293b] border border-slate-700 hover:border-blue-500/50 text-[10px] font-bold text-slate-300 uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-lg"
-                >
-                  {aggregations?.attributionData.families.map((f: string) => (
-                    <option key={f} value={f === 'All' ? 'all' : f}>{f}</option>
-                  ))}
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><Database size={12} /></div>
-              </div>
-              <div className="relative">
-                <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                  className="appearance-none bg-[#1e293b] border border-slate-700 hover:border-blue-500/50 text-[10px] font-bold text-slate-300 uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-lg"
-                >
-                  <option value="all">Global Type</option>
-                  <option value="dedicated">Dedicated Only</option>
-                  <option value="shared">Shared Models</option>
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><PieChart size={12} /></div>
-              </div>
-            </div>
-          )}
+          <div className="relative group">
+            <select
+              value={familyFilter}
+              onChange={(e) => setFamilyFilter(e.target.value)}
+              className="appearance-none bg-[#1e293b] border border-slate-700 hover:border-blue-500/50 text-[10px] font-bold text-slate-300 uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-lg"
+            >
+              {aggregations?.attributionData.families.map((f: string) => (
+                <option key={f} value={f === 'All' ? 'all' : f}>{f}</option>
+              ))}
+            </select>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><Database size={12} /></div>
+          </div>
 
-          {activeTab === 'vertical' && (
-            <div className="relative">
-              <select
-                value={verticalFilter}
-                onChange={(e) => setVerticalFilter(e.target.value)}
-                className="appearance-none bg-[#1e293b] border border-slate-700 hover:border-blue-500/50 text-[10px] font-bold text-slate-300 uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-lg"
-              >
-                <option value="all">All Segments</option>
-                <option value="cc">Credit Card</option>
-                <option value="pl">Personal Loans</option>
-                <option value="ins">Insurance</option>
-              </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><LayoutDashboard size={12} /></div>
-            </div>
-          )}
+          <div className="relative group">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="appearance-none bg-[#1e293b] border border-slate-700 hover:border-blue-500/50 text-[10px] font-bold text-slate-300 uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-lg"
+            >
+              <option value="all">Global Type</option>
+              <option value="dedicated">Dedicated Only</option>
+              <option value="shared">Shared Models</option>
+            </select>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><PieChart size={12} /></div>
+          </div>
+
+          <div className="relative group">
+            <select
+              value={verticalFilter}
+              onChange={(e) => setVerticalFilter(e.target.value)}
+              className="appearance-none bg-[#1e293b] border border-slate-700 hover:border-blue-500/50 text-[10px] font-bold text-slate-300 uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-lg"
+            >
+              <option value="all">All Segments</option>
+              <option value="cc">Credit Card</option>
+              <option value="pl">Personal Loans</option>
+              <option value="ins">Insurance</option>
+            </select>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><LayoutDashboard size={12} /></div>
+          </div>
 
           {/* Refresh/Reset (Visual only) */}
           <button

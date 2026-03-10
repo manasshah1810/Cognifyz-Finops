@@ -12,6 +12,7 @@ export const InitiativeModelMap: React.FC<InitiativeModelMapProps> = ({ tableDat
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [filterFamily, setFilterFamily] = useState('All');
+    const [filterInitiative, setFilterInitiative] = useState('All');
     const itemsPerPage = 10;
 
     const filteredData = useMemo(() => {
@@ -22,9 +23,10 @@ export const InitiativeModelMap: React.FC<InitiativeModelMapProps> = ({ tableDat
                 (row.ModelName || '').toLowerCase().includes(searchLower) ||
                 (row.Initiative || '').toLowerCase().includes(searchLower);
             const matchesFamily = filterFamily === 'All' || row.ModelFamily === filterFamily;
-            return matchesSearch && matchesFamily;
+            const matchesInitiative = filterInitiative === 'All' || row.Initiative === filterInitiative;
+            return matchesSearch && matchesFamily && matchesInitiative;
         });
-    }, [tableData, searchTerm, filterFamily]);
+    }, [tableData, searchTerm, filterFamily, filterInitiative]);
 
     const paginatedData = useMemo(() => {
         return filteredData.slice(
@@ -68,6 +70,22 @@ export const InitiativeModelMap: React.FC<InitiativeModelMapProps> = ({ tableDat
                                 className="bg-transparent text-xs text-white focus:outline-none cursor-pointer"
                             >
                                 {families.map(f => <option key={f} value={f} className="bg-slate-900">{f}</option>)}
+                            </select>
+                        </div>
+                        <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2">
+                            <Filter size={14} className="text-slate-500" />
+                            <select
+                                value={filterInitiative}
+                                onChange={(e) => {
+                                    setFilterInitiative(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="bg-transparent text-xs text-white focus:outline-none cursor-pointer"
+                            >
+                                <option value="All" className="bg-slate-900">All Initiatives</option>
+                                {Array.from(new Set(tableData.map(r => r.Initiative))).filter(Boolean).map(i => (
+                                    <option key={String(i)} value={String(i)} className="bg-slate-900">{String(i)}</option>
+                                ))}
                             </select>
                         </div>
                     </div>
