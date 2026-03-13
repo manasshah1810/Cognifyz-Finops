@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { UploadControls } from '@/components/UploadControls';
 import { CostTrendChart } from '@/components/CostTrendChart';
 import { VerticalUsage } from '@/components/VerticalUsage';
 import { ModelPortfolio } from '@/components/ModelPortfolio';
@@ -13,7 +12,8 @@ import { Chatbot } from '@/components/Chatbot';
 import { Glossary } from '@/components/Glossary';
 import { CostBreakdown } from '@/components/CostBreakdown';
 import Papa from 'papaparse';
-import { Wallet, PieChart, AlertCircle, Server, Database, LayoutDashboard, BarChart3, Settings, LogOut, Menu, X, Bot, BookOpen, Search } from 'lucide-react';
+import { Wallet, PieChart, AlertCircle, Server, Database, LayoutDashboard, BarChart3, Settings, LogOut, Menu, X, Bot, BookOpen, Search, Upload } from 'lucide-react';
+import { UploadPage } from '@/components/UploadPage';
 
 interface CloudBillRow {
   UsageStartDate: string;
@@ -43,6 +43,8 @@ export default function Dashboard() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [verticalFilter, setVerticalFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isDataReady, setIsDataReady] = useState(true);
+  const [dataSource, setDataSource] = useState<'demo' | 'user'>('demo');
   const [isPending, startTransition] = React.useTransition();
 
   const filesLoaded = {
@@ -54,6 +56,26 @@ export default function Dashboard() {
     startTransition(() => {
       if (type === 'bill') setCloudBill(data);
       else setAttributionMap(data);
+    });
+  };
+
+  const handleFullUpload = (billData: any[], mapData: any[]) => {
+    startTransition(() => {
+      setCloudBill(billData);
+      setAttributionMap(mapData);
+      setIsDataReady(true);
+      setDataSource('user');
+
+      // Update date range based on new data
+      const dates = billData.map(d => new Date(d.UsageStartDate).getTime()).filter(t => !isNaN(t));
+      if (dates.length > 0) {
+        const minDate = new Date(Math.min(...dates)).toISOString().split('T')[0];
+        const maxDate = new Date(Math.max(...dates)).toISOString().split('T')[0];
+        setStartDate(minDate);
+        setEndDate(maxDate);
+      }
+
+      setActiveTab('executive');
     });
   };
 
@@ -128,12 +150,11 @@ export default function Dashboard() {
     minTime = Infinity; // reset for actual filtered data min date later
 
     const filterTime = (dateStr: string) => {
-      if (!dateStr) return true;
+      if (!dateStr || (!startDate && !endDate)) return true;
       const t = new Date(dateStr).getTime();
       if (isNaN(t)) return true;
 
       const start = startDate ? new Date(startDate).getTime() : -Infinity;
-      // Set end to end of day
       const end = endDate ? new Date(endDate).getTime() + (24 * 60 * 60 * 1000 - 1) : Infinity;
 
       return t >= start && t <= end;
@@ -155,10 +176,11 @@ export default function Dashboard() {
 
     const attributionLookup = new Map<string, AttributionMapRow[]>();
     filteredMap.forEach(row => {
-      if (!attributionLookup.has(row.ModelName)) {
-        attributionLookup.set(row.ModelName, []);
+      const key = (row.ModelName || '').trim().toLowerCase();
+      if (!attributionLookup.has(key)) {
+        attributionLookup.set(key, []);
       }
-      attributionLookup.get(row.ModelName)?.push(row);
+      attributionLookup.get(key)?.push(row);
     });
 
     // Aggregation structures
@@ -261,7 +283,7 @@ export default function Dashboard() {
       const cost = typeof bill.UnblendedCost === 'number' ? bill.UnblendedCost : parseFloat(String(bill.UnblendedCost || '0'));
       totalSpend += cost;
 
-      const attributions = attributionLookup.get(bill.ResourceID);
+      const attributions = attributionLookup.get((bill.ResourceID || '').trim().toLowerCase());
       const dateStr = bill.UsageStartDate;
       const dayKey = dateStr.substring(0, 10);
 
@@ -543,6 +565,7 @@ export default function Dashboard() {
     { id: 'attribution', label: 'Initiative Attribution', icon: <Database size={18} /> },
     { id: 'portfolio', label: 'Model Portfolio', icon: <BarChart3 size={18} /> },
     { id: 'vertical', label: 'Vertical Usage', icon: <Settings size={18} /> },
+    { id: 'upload', label: 'Upload Files', icon: <Upload size={18} /> },
     { id: 'glossary', label: 'Glossary', icon: <BookOpen size={18} /> }
   ];
 
@@ -742,29 +765,26 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 bg-[#020617]">
-        {/* Header */}
-        <header className="h-16 border-b border-slate-800 bg-[#0f172a]/80 backdrop-blur-md sticky top-0 z-40 px-8 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 transition-colors"
-            >
-              {isSidebarOpen ? <X size={18} /> : <Menu size={18} />}
-            </button>
-            <h1 className="text-sm font-bold text-white uppercase tracking-widest">{activeTab.replace('-', ' ')}</h1>
+        {/* Floating Controls */}
+        <div className="fixed top-6 left-[inherit] z-50 flex items-center px-8 w-full pointer-events-none">
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-2.5 bg-[#0f172a]/80 backdrop-blur-md border border-slate-800/50 hover:bg-slate-800 rounded-xl text-slate-400 transition-all pointer-events-auto shadow-xl"
+          >
+            {isSidebarOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
+        </div>
+
+        {/* Floating Data Badge - Bottom Left */}
+        <div className={`fixed bottom-8 z-50 transition-all duration-300 pointer-events-none ${isSidebarOpen ? 'left-72' : 'left-28'}`}>
+          <div className={`px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-3 backdrop-blur-md transition-all pointer-events-auto shadow-2xl animate-in slide-in-from-bottom-4 duration-500 ${dataSource === 'user'
+            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+            : 'bg-blue-500/10 border-blue-500/20 text-blue-400'
+            }`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${dataSource === 'user' ? 'bg-emerald-400 animate-pulse' : 'bg-blue-400'}`} />
+            {dataSource === 'user' ? 'Live User Data' : 'Demo Dataset'}
           </div>
-          <div className="flex items-center gap-6">
-            {isPending && (
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Processing Data...</span>
-              </div>
-            )}
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-              {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-            </div>
-          </div>
-        </header>
+        </div>
 
         {/* Loading Overlay */}
         {isPending && (
@@ -779,17 +799,18 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Dashboard Content */}
         <div className="p-8 overflow-y-auto">
-          {!stats ? (
+          {activeTab === 'upload' ? (
+            <UploadPage onUploadComplete={handleFullUpload} />
+          ) : !stats || !aggregations ? (
             <div className="h-[70vh] flex flex-col items-center justify-center text-center space-y-6">
               <div className="w-20 h-20 bg-[#0f172a] rounded-3xl flex items-center justify-center border border-slate-800 shadow-2xl glow-blue">
                 <Database className="text-blue-400" size={40} />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white">No Data Sources Connected</h2>
+                <h2 className="text-xl font-bold text-white">Initializing Data...</h2>
                 <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto uppercase tracking-wide">
-                  Upload your Cloud Billing and Attribution Map CSV files using the controls in the bottom-right corner to begin analysis.
+                  Optimizing dashboard for analysis. Please wait.
                 </p>
               </div>
             </div>
@@ -895,9 +916,6 @@ export default function Dashboard() {
           )}
         </div>
       </main>
-
-      {/* Floating Controls */}
-      <UploadControls onUpload={handleUpload} filesLoaded={filesLoaded} />
 
       {/* AI Chatbot */}
       <Chatbot

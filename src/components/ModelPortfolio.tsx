@@ -37,89 +37,73 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
         setIsRecommendationLoading(true);
         setAiRecommendation(null);
 
-        const models = [
-            "sourceful/riverflow-v2-pro",
-            "arcee-ai/trinity-large-preview:free",
-            "allenai/molmo-2-8b:free",
-            "bytedance-seed/seedream-4.5",
-            "tngtech/tng-r1t-chimera:free"
-        ];
-
         const prompt = `
             Analyze this "High-Risk" Machine Learning Model and provide specific recommendations.
             
             Model Context:
             - Name: ${model.name}
             - Family: ${model.family}
-            - Owner Count: ${model.ownerCount} (Threshold is < 3 for normal)
-            - Max Attribution: ${model.maxAttr}% (Threshold is > 40% for normal)
+            - Owner Count: ${model.ownerCount} (Higher count means more shared risk)
+            - Max Attribution: ${model.maxAttr.toFixed(1)}% (Lower max attribution means no single initiative takes responsibility)
             - Owners: ${JSON.stringify(model.owners)}
 
-            Output must be valid JSON with ONLY these two keys:
+            Output MUST be strict valid JSON with EXACTLY these two keys:
             {
-                "problem": ["point 1", "point 2"],
-                "solution": ["point 1", "point 2"]
+                "problem": ["Specific technical/financial risk 1", "Specific technical/financial risk 2"],
+                "solution": ["Actionable mitigation step 1", "Actionable mitigation step 2"]
             }
 
-            The "problem" section should explain why it is high risk based on the data.
-            The "solution" section should provide actionable steps to resolve the risk.
-            Keep it professional, concise, and engineering-focused. Do NOT include markdown formatting.
+            Focus on: Infrastructure efficiency, budget accountability, and ownership consolidation.
+            Do NOT include any preamble or markdown formatting. Output ONLY the JSON object.
         `;
 
-        let success = false;
+        try {
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_API_KEY}`,
+                    "HTTP-Referer": "https://cognifyz-finops.vercel.app/",
+                    "X-OpenRouter-Title": "Cognifyz FinOps Suite",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    "model": "arcee-ai/trinity-mini:free",
+                    "messages": [
+                        { "role": "system", "content": "You are a professional FinOps ML Infrastructure Architect. You always output strict JSON with 'problem' and 'solution' arrays." },
+                        { "role": "user", "content": prompt }
+                    ]
+                })
+            });
 
-        for (const modelId of models) {
-            try {
-                const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_API_KEY}`,
-                        "Content-Type": "application/json",
-                        "HTTP-Referer": "https://cogniify-finops.vercel.app/",
-                        "X-Title": "Analytics Dashboard"
-                    },
-                    body: JSON.stringify({
-                        "model": modelId,
-                        "messages": [
-                            { "role": "system", "content": "You are an expert ML Infrastructure Architect. Output strict JSON only." },
-                            { "role": "user", "content": prompt }
-                        ]
-                    })
-                });
-
-                if (!response.ok) {
-                    console.warn(`Model ${modelId} failed with status: ${response.status}`);
-                    continue;
-                }
-
-                const data = await response.json();
-                const content = data.choices?.[0]?.message?.content || "";
-
-                const jsonMatch = content.match(/\{[\s\S]*\}/);
-                const cleanContent = jsonMatch ? jsonMatch[0] : content;
-
-                try {
-                    const parsed = JSON.parse(cleanContent);
-                    if (!parsed.problem || !parsed.solution) {
-                        throw new Error("Invalid structure");
-                    }
-                    setAiRecommendation(parsed);
-                    success = true;
-                    break;
-                } catch (e) {
-                    console.warn(`Model ${modelId} returned invalid JSON. Trying next...`);
-                    continue;
-                }
-            } catch (error) {
-                console.warn(`Model ${modelId} error:`, error);
-                continue;
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData?.error?.message || `Status ${response.status}`);
             }
-        }
 
-        if (!success) {
+            const data = await response.json();
+            const content = data.choices?.[0]?.message?.content || "";
+
+            // Robust JSON extraction
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            const cleanContent = jsonMatch ? jsonMatch[0] : content;
+
+            const parsed = JSON.parse(cleanContent);
+            if (!parsed.problem || !parsed.solution) {
+                throw new Error("Invalid response structure from AI");
+            }
+            setAiRecommendation(parsed);
+        } catch (error: any) {
+            console.error("AI Recommendation Error:", error);
             setAiRecommendation({
-                problem: ["All AI models failed to respond.", "Service capability is currently limited."],
-                solution: ["Review manual controls.", "Try again in a few minutes."]
+                problem: [
+                    error.message.includes('429') ? "Rate Limit Exceeded (429)" : `API Error: ${error.message}`,
+                    "The OpenRouter free tier is currently limiting requests for this specific model."
+                ],
+                solution: [
+                    "Wait 1-2 minutes and try again.",
+                    "Ensure your API key is correctly configured in the .env file.",
+                    "Consider using a non-free model if prompt urgency is high."
+                ]
             });
         }
 
