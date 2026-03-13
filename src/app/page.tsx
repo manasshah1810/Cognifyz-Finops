@@ -172,7 +172,18 @@ export default function Dashboard() {
     };
 
     const filteredBill = cloudBill.filter(b => filterTime(b.UsageStartDate) && filterSearch(b));
-    const filteredMap = attributionMap.filter(m => filterTime(m.timestamp) && filterSearch(m));
+
+    // Base map with time/search only - for dropdowns
+    const baseMap = attributionMap.filter(m => filterTime(m.timestamp) && filterSearch(m));
+    const allInitiativesDropdown = Array.from(new Set(baseMap.map(m => m.Initiative).filter(Boolean))).sort();
+    const allFamiliesDropdown = ['All', ...Array.from(new Set(baseMap.map(m => m.ModelFamily).filter(Boolean))).sort()];
+
+    // Apply active filters to Map for processing
+    const filteredMap = baseMap.filter(m => {
+      if (initiativeFilter !== 'all' && m.Initiative !== initiativeFilter) return false;
+      if (familyFilter !== 'all' && m.ModelFamily !== familyFilter) return false;
+      return true;
+    });
 
     const attributionLookup = new Map<string, AttributionMapRow[]>();
     filteredMap.forEach(row => {
@@ -281,29 +292,54 @@ export default function Dashboard() {
     for (let i = 0; i < filteredBill.length; i++) {
       const bill = filteredBill[i];
       const cost = typeof bill.UnblendedCost === 'number' ? bill.UnblendedCost : parseFloat(String(bill.UnblendedCost || '0'));
-      totalSpend += cost;
-
       const attributions = attributionLookup.get((bill.ResourceID || '').trim().toLowerCase());
       const dateStr = bill.UsageStartDate;
       const dayKey = dateStr.substring(0, 10);
 
-      if (!attributions || attributions.length === 0) {
-        // Unattributed
-        if (!modelMap.has(bill.ResourceID)) modelMap.set(bill.ResourceID, new Set());
+      // If filters are active, skip rows that don't match the selected initiative/family
+      const hasInitOrFamFilter = initiativeFilter !== 'all' || familyFilter !== 'all';
+      if (hasInitOrFamFilter && (!attributions || attributions.length === 0)) continue;
 
-        // Table data
-        tableData.push({
-          ModelName: bill.ResourceID,
-          ModelFamily: 'Unknown',
-          Initiative: 'Unattributed',
-          AttributionPct: 0,
-          UnblendedCost: cost
-        });
+      if (!attributions || attributions.length === 0) {
+        // Unattributed - only include if no initiative/family filter is active
+        if (!hasInitOrFamFilter) {
+          if (!modelMap.has(bill.ResourceID)) modelMap.set(bill.ResourceID, new Set());
+
+          // Table data
+          tableData.push({
+            ModelName: bill.ResourceID,
+            ModelFamily: 'Unknown',
+            Initiative: 'Unattributed',
+            AttributionPct: 0,
+            UnblendedCost: cost
+          });
+          totalSpend += cost;
+        }
       } else {
+        let matchedSomething = false;
+        let matchedCostInRow = 0;
         for (let j = 0; j < attributions.length; j++) {
           const attr = attributions[j];
           const attrPct = typeof attr.AttributionPct === 'number' ? attr.AttributionPct : parseFloat(String(attr.AttributionPct || '0'));
-          const attributedCost = cost * (attrPct / 100);
+
+          let attributedCost = cost * (attrPct / 100);
+
+          // Apply Vertical Filter scaling if active
+          if (verticalFilter !== 'all') {
+            let splitVal: any = { CC: 0, PL: 0, Ins: 0 };
+            try { splitVal = typeof attr.VerticalSplitPct === 'string' ? JSON.parse(attr.VerticalSplitPct) : attr.VerticalSplitPct; } catch (e) { }
+            const vKey = verticalFilter === 'cc' ? 'CC' : verticalFilter === 'pl' ? 'PL' : verticalFilter === 'ins' ? 'Ins' : null;
+            if (vKey && splitVal && splitVal[vKey] !== undefined) {
+              attributedCost = attributedCost * (splitVal[vKey] / 100);
+            } else if (vKey) {
+              attributedCost = 0; // Filtered out by vertical
+            }
+          }
+
+          if (attributedCost <= 0 && verticalFilter !== 'all') continue;
+
+          matchedSomething = true;
+          matchedCostInRow += attributedCost;
           attributedSpend += attributedCost;
           const init = attr.Initiative;
           const family = attr.ModelFamily;
@@ -382,6 +418,9 @@ export default function Dashboard() {
               UnblendedCost: attributedCost
             });
           }
+        }
+        if (matchedSomething) {
+          totalSpend += matchedCostInRow;
         }
       }
     }
@@ -480,17 +519,17 @@ export default function Dashboard() {
         for (const [init, s] of Object.entries(values)) entry[init] = s.sum / s.count;
         return entry;
       }).sort((a, b) => a.date.localeCompare(b.date)),
-      families: ['All', ...Array.from(familySet).sort()],
-      initiatives: Array.from(initiativeSet).slice(0, 8),
+      families: allFamiliesDropdown,
+      initiatives: allInitiativesDropdown,
       heatmapMatrix: {
-        initiatives: Array.from(initiativeSet),
-        families: Array.from(familySet),
+        initiatives: Array.from(initiativeSet).sort(),
+        families: Array.from(familySet).sort(),
         data: familyInitiativeStats // Reuse this for heatmap
       }
     };
 
-    return { stats, aggregations: { costTrendData, verticalUsageData, costBreakdownData, modelPortfolioData, attributionData, initiativeSet: Array.from(initiativeSet).slice(0, 5) } };
-  }, [cloudBill, attributionMap, startDate, endDate]);
+    return { stats, aggregations: { costTrendData, verticalUsageData, costBreakdownData, modelPortfolioData, attributionData, initiativeSet: Array.from(initiativeSet).sort().slice(0, 8) } };
+  }, [cloudBill, attributionMap, startDate, endDate, searchQuery, initiativeFilter, familyFilter, typeFilter, verticalFilter]);
 
   const { stats, aggregations } = processedData;
 
@@ -544,7 +583,7 @@ export default function Dashboard() {
         }
       }
     };
-  }, [aggregations, stats, initiativeFilter, familyFilter, typeFilter, searchQuery]);
+  }, [aggregations, stats, initiativeFilter, familyFilter, typeFilter, verticalFilter, searchQuery]);
 
   const { filteredAggregations } = filteredDisplayData;
 
