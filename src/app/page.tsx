@@ -12,7 +12,7 @@ import { Chatbot } from '@/components/Chatbot';
 import { Glossary } from '@/components/Glossary';
 import { CostBreakdown } from '@/components/CostBreakdown';
 import Papa from 'papaparse';
-import { Wallet, PieChart, AlertCircle, Server, Database, LayoutDashboard, BarChart3, Settings, LogOut, Menu, X, Bot, BookOpen, Search, Upload } from 'lucide-react';
+import { Wallet, PieChart, AlertCircle, Server, Database, LayoutDashboard, BarChart3, Settings, LogOut, Menu, X, Bot, BookOpen, Search, Upload, Info, DollarSign } from 'lucide-react';
 import { UploadPage } from '@/components/UploadPage';
 
 interface CloudBillRow {
@@ -171,7 +171,7 @@ export default function Dashboard() {
       );
     };
 
-    const filteredBill = cloudBill.filter(b => filterTime(b.UsageStartDate) && filterSearch(b));
+    const filteredBill = cloudBill.filter(b => filterTime(b.UsageStartDate));
 
     // Base map with time/search only - for dropdowns
     const baseMap = attributionMap.filter(m => filterTime(m.timestamp) && filterSearch(m));
@@ -296,8 +296,14 @@ export default function Dashboard() {
       const dateStr = bill.UsageStartDate;
       const dayKey = dateStr.substring(0, 10);
 
-      // If filters are active, skip rows that don't match the selected initiative/family
       const hasInitOrFamFilter = initiativeFilter !== 'all' || familyFilter !== 'all';
+
+      // Search check: matches ResourceID or any associated attribution
+      const matchesResourceSearch = filterSearch(bill);
+      const anyAttrMatchesSearch = attributions?.some(a => filterSearch(a)) || false;
+      const passSearch = matchesResourceSearch || anyAttrMatchesSearch;
+
+      if (!passSearch) continue;
       if (hasInitOrFamFilter && (!attributions || attributions.length === 0)) continue;
 
       if (!attributions || attributions.length === 0) {
@@ -327,7 +333,14 @@ export default function Dashboard() {
           // Apply Vertical Filter scaling if active
           if (verticalFilter !== 'all') {
             let splitVal: any = { CC: 0, PL: 0, Ins: 0 };
-            try { splitVal = typeof attr.VerticalSplitPct === 'string' ? JSON.parse(attr.VerticalSplitPct) : attr.VerticalSplitPct; } catch (e) { }
+            try {
+              const parsed = typeof attr.VerticalSplitPct === 'string' ? JSON.parse(attr.VerticalSplitPct) : attr.VerticalSplitPct;
+              // Normalize keys to uppercase for robustness
+              splitVal = Object.keys(parsed || {}).reduce((acc: any, key) => {
+                acc[key.toUpperCase()] = parsed[key];
+                return acc;
+              }, { CC: 0, PL: 0, Ins: 0 });
+            } catch (e) { }
             const vKey = verticalFilter === 'cc' ? 'CC' : verticalFilter === 'pl' ? 'PL' : verticalFilter === 'ins' ? 'Ins' : null;
             if (vKey && splitVal && splitVal[vKey] !== undefined) {
               attributedCost = attributedCost * (splitVal[vKey] / 100);
@@ -437,8 +450,8 @@ export default function Dashboard() {
 
     const stats = {
       totalSpend,
-      attributedSpendPct: (attributedSpend / totalSpend) * 100,
-      unallocatedSpend: totalSpend - attributedSpend,
+      attributedSpendPct: totalSpend > 0 ? (attributedSpend / totalSpend) * 100 : 0,
+      unallocatedSpend: Math.max(0, totalSpend - attributedSpend),
       activeModelsCount: totalModels,
       ownershipConcentration: totalModels > 0 ? (highConcentrationCount / totalModels) * 100 : 0,
       dedicatedCount,
@@ -737,13 +750,6 @@ export default function Dashboard() {
             <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><LayoutDashboard size={12} /></div>
           </div>
 
-          {/* Refresh/Reset (Visual only) */}
-          <button
-            className="p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl transition-all shadow-xl shadow-blue-500/20 active:scale-95 group"
-            onClick={() => { }}
-          >
-            <Settings size={16} className="group-hover:rotate-90 transition-transform duration-500" />
-          </button>
         </div>
       </div>
       {renderActiveChips()}
@@ -897,6 +903,21 @@ export default function Dashboard() {
                       </div>
                       <div className="text-3xl font-bold text-white tracking-tight">{stats.attributionStability}%</div>
                       <div className="mt-2 text-[10px] text-slate-500 font-medium uppercase tracking-wide">Stable attribution over time</div>
+                    </div>
+
+                    <div className="kpi-card glow-blue col-span-1 md:col-span-2 lg:col-span-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="text-[10px] font-bold text-blue-400 uppercase tracking-[0.2em]">Filtered Total Spend</span>
+                          <div className="text-4xl font-black text-white tracking-tighter mt-1">{formatCurrency(stats.totalSpend)}</div>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-2 flex items-center gap-2">
+                            <Info size={12} /> This reflects cost after applying active filters and vertical scaling
+                          </p>
+                        </div>
+                        <div className="p-4 bg-blue-500/10 rounded-2xl border border-blue-500/20 shadow-2xl shadow-blue-500/10">
+                          <DollarSign size={32} className="text-blue-400" />
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

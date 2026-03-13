@@ -11,8 +11,6 @@ interface InitiativeModelMapProps {
 export const InitiativeModelMap: React.FC<InitiativeModelMapProps> = ({ tableData, families }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [filterFamily, setFilterFamily] = useState('All');
-    const [filterInitiative, setFilterInitiative] = useState('All');
     const itemsPerPage = 10;
 
     const filteredData = useMemo(() => {
@@ -22,11 +20,9 @@ export const InitiativeModelMap: React.FC<InitiativeModelMapProps> = ({ tableDat
             const matchesSearch = !searchTerm ||
                 (row.ModelName || '').toLowerCase().includes(searchLower) ||
                 (row.Initiative || '').toLowerCase().includes(searchLower);
-            const matchesFamily = filterFamily === 'All' || row.ModelFamily === filterFamily;
-            const matchesInitiative = filterInitiative === 'All' || row.Initiative === filterInitiative;
-            return matchesSearch && matchesFamily && matchesInitiative;
+            return matchesSearch;
         });
-    }, [tableData, searchTerm, filterFamily, filterInitiative]);
+    }, [tableData, searchTerm]);
 
     const paginatedData = useMemo(() => {
         return filteredData.slice(
@@ -50,7 +46,7 @@ export const InitiativeModelMap: React.FC<InitiativeModelMapProps> = ({ tableDat
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                             <input
                                 type="text"
-                                placeholder="Search models..."
+                                placeholder="Filter results..."
                                 value={searchTerm}
                                 onChange={(e) => {
                                     setSearchTerm(e.target.value);
@@ -58,35 +54,6 @@ export const InitiativeModelMap: React.FC<InitiativeModelMapProps> = ({ tableDat
                                 }}
                                 className="pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:border-blue-500 transition-all w-64"
                             />
-                        </div>
-                        <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2">
-                            <Filter size={14} className="text-slate-500" />
-                            <select
-                                value={filterFamily}
-                                onChange={(e) => {
-                                    setFilterFamily(e.target.value);
-                                    setCurrentPage(1);
-                                }}
-                                className="bg-transparent text-xs text-white focus:outline-none cursor-pointer"
-                            >
-                                {families.map(f => <option key={f} value={f} className="bg-slate-900">{f}</option>)}
-                            </select>
-                        </div>
-                        <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2">
-                            <Filter size={14} className="text-slate-500" />
-                            <select
-                                value={filterInitiative}
-                                onChange={(e) => {
-                                    setFilterInitiative(e.target.value);
-                                    setCurrentPage(1);
-                                }}
-                                className="bg-transparent text-xs text-white focus:outline-none cursor-pointer"
-                            >
-                                <option value="All" className="bg-slate-900">All Initiatives</option>
-                                {Array.from(new Set(tableData.map(r => r.Initiative))).filter(Boolean).map(i => (
-                                    <option key={String(i)} value={String(i)} className="bg-slate-900">{String(i)}</option>
-                                ))}
-                            </select>
                         </div>
                     </div>
                 </div>
