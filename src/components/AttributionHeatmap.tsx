@@ -11,7 +11,7 @@ interface AttributionHeatmapProps {
 }
 
 export const AttributionHeatmap: React.FC<AttributionHeatmapProps> = ({ matrix }) => {
-    if (!matrix) return null;
+    if (!matrix || !matrix.families || !matrix.initiatives) return null;
 
     const getHeatColor = (val: number) => {
         if (val === 0) return 'bg-slate-900/50 text-slate-600 border-slate-800';

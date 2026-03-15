@@ -198,49 +198,6 @@ export const VerticalUsage: React.FC<VerticalUsageProps> = ({ data }) => {
                 </div>
             </div>
 
-            {/* Finance Insights */}
-            <div className="bg-slate-900 text-white rounded-xl p-8 shadow-2xl border border-blue-500/20">
-                <div className="flex items-center gap-3 mb-8">
-                    <div className="p-2 bg-blue-500/10 rounded-lg">
-                        <Info size={20} className="text-blue-400" />
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-bold uppercase tracking-[0.2em]">Finance Insights</h3>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Key observations for cost alignment review</p>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
-                    <div className="space-y-3">
-                        <h4 className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Vertical Concentration</h4>
-                        <p className="text-xs text-slate-400 leading-relaxed">
-                            Credit Card dominates ML usage at <span className="text-blue-400 font-bold">{verticalTotals.ccPct.toFixed(1)}%</span>.
-                            Consider reviewing if this aligns with revenue contribution and business priority for the current fiscal year.
-                        </p>
-                    </div>
-
-                    <div className="space-y-3">
-                        <h4 className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Initiative Alignment Check</h4>
-                        <p className="text-xs text-slate-400 leading-relaxed">
-                            Review initiatives with highly skewed vertical splits. Consider whether dedicated vertical teams should own specific models vs. a shared platform approach for better resource utilization.
-                        </p>
-                    </div>
-
-                    <div className="space-y-3">
-                        <h4 className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Cross-Vertical Efficiency</h4>
-                        <p className="text-xs text-slate-400 leading-relaxed">
-                            Models serving multiple verticals through shared initiatives may benefit from platform-level ownership to optimize cost allocation and reduce redundant engineering efforts.
-                        </p>
-                    </div>
-
-                    <div className="space-y-3">
-                        <h4 className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Chargeback Considerations</h4>
-                        <p className="text-xs text-slate-400 leading-relaxed">
-                            Use vertical split percentages in conjunction with initiative attribution for granular cost allocation to business lines, ensuring equitable chargeback models.
-                        </p>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 };

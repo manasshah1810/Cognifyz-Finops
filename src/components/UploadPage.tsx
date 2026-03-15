@@ -17,26 +17,79 @@ export const UploadPage: React.FC<UploadPageProps> = ({ onUploadComplete }) => {
     const billFileRef = useRef<HTMLInputElement>(null);
     const mapFileRef = useRef<HTMLInputElement>(null);
 
+    const sanitizeValue = (val: any) => {
+        if (typeof val !== 'string') return val;
+        // Prevent CSV Injection by prefixing common formula triggers with a single quote
+        if (val.startsWith('=') || val.startsWith('+') || val.startsWith('-') || val.startsWith('@')) {
+            return `'${val}`;
+        }
+        return val;
+    };
+
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'bill' | 'map') => {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        // Reset state on new upload attempt
+        if (type === 'bill') {
+            setBillData(null);
+            setBillFileName(null);
+        } else {
+            setMapData(null);
+            setMapFileName(null);
+        }
+
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
+            transform: (value) => sanitizeValue(value),
             complete: (results) => {
                 if (results.errors.length > 0) {
                     alert(`Error parsing file: ${results.errors[0].message}`);
                     return;
                 }
+
+                const data = results.data as any[];
+
+                // Validate Map Data specifically for VerticalSplitPct
+                if (type === 'map' && data.length > 0) {
+                    const firstRow = data[0];
+                    if (firstRow.VerticalSplitPct) {
+                        try {
+                            const parsed = typeof firstRow.VerticalSplitPct === 'string'
+                                ? JSON.parse(firstRow.VerticalSplitPct)
+                                : firstRow.VerticalSplitPct;
+
+                            const keys = Object.keys(parsed).map(k => k.toUpperCase());
+                            if (!keys.includes('CC') || !keys.includes('PL') || !keys.includes('INS')) {
+                                alert("CRITICAL ERROR: Attribution Map detected but 'VerticalSplitPct' is missing required keys: CC, PL, or Ins. Vertical charts will not display correctly.");
+                                return;
+                            }
+                        } catch (e) {
+                            alert("CRITICAL ERROR: 'VerticalSplitPct' column contains invalid JSON. Please check the specification at the bottom of the page.");
+                            return;
+                        }
+                    }
+                }
+
                 if (type === 'bill') {
-                    setBillData(results.data);
+                    setBillData(data);
                     setBillFileName(file.name);
                 } else {
-                    setMapData(results.data);
+                    setMapData(data);
                     setMapFileName(file.name);
                 }
             },
+            error: (error) => {
+                alert(`Fatal parsing error: ${error.message}`);
+                if (type === 'bill') {
+                    setBillData(null);
+                    setBillFileName(null);
+                } else {
+                    setMapData(null);
+                    setMapFileName(null);
+                }
+            }
         });
     };
 

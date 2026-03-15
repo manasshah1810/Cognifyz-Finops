@@ -10,6 +10,8 @@ interface AttributionOverTimeProps {
 }
 
 export const AttributionOverTime: React.FC<AttributionOverTimeProps> = ({ chartData, initiatives }) => {
+    // Safeguards for chartData and initiatives
+    if (!chartData || !Array.isArray(chartData) || chartData.length === 0 || !initiatives || !Array.isArray(initiatives) || initiatives.length === 0) return null;
     const colors = ['#38bdf8', '#818cf8', '#fb7185', '#34d399', '#fbbf24', '#ef4444', '#06b6d4', '#ec4899'];
 
     return (

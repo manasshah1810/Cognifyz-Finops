@@ -11,6 +11,7 @@ import { AttributionHeatmap } from '@/components/AttributionHeatmap';
 import { Chatbot } from '@/components/Chatbot';
 import { Glossary } from '@/components/Glossary';
 import { CostBreakdown } from '@/components/CostBreakdown';
+import { AIFinancialInsights } from '@/components/AIFinancialInsights';
 import Papa from 'papaparse';
 import { Wallet, PieChart, AlertCircle, Server, Database, LayoutDashboard, BarChart3, Settings, LogOut, Menu, X, Bot, BookOpen, Search, Upload, Info, DollarSign } from 'lucide-react';
 import { UploadPage } from '@/components/UploadPage';
@@ -89,9 +90,18 @@ export default function Dashboard() {
 
         if (billRes.ok) {
           const billText = await billRes.text();
+          const sanitizeValue = (val: any) => {
+            if (typeof val !== 'string') return val;
+            if (val.startsWith('=') || val.startsWith('+') || val.startsWith('-') || val.startsWith('@')) {
+              return `'${val}`;
+            }
+            return val;
+          };
+
           Papa.parse(billText, {
             header: true,
             skipEmptyLines: true,
+            transform: (value) => sanitizeValue(value),
             complete: (results) => {
               if (results.data.length > 0) {
                 const data = results.data as CloudBillRow[];
@@ -115,6 +125,13 @@ export default function Dashboard() {
           Papa.parse(mapText, {
             header: true,
             skipEmptyLines: true,
+            transform: (value) => {
+              if (typeof value !== 'string') return value;
+              if (value.startsWith('=') || value.startsWith('+') || value.startsWith('-') || value.startsWith('@')) {
+                return `'${value}`;
+              }
+              return value;
+            },
             complete: (results) => {
               if (results.data.length > 0) {
                 setAttributionMap(results.data as AttributionMapRow[]);
@@ -541,7 +558,7 @@ export default function Dashboard() {
       }
     };
 
-    return { stats, aggregations: { costTrendData, verticalUsageData, costBreakdownData, modelPortfolioData, attributionData, initiativeSet: Array.from(initiativeSet).sort().slice(0, 8) } };
+    return { stats, startDate, endDate, aggregations: { costTrendData, verticalUsageData, costBreakdownData, modelPortfolioData, attributionData, initiativeSet: Array.from(initiativeSet).sort().slice(0, 8) } };
   }, [cloudBill, attributionMap, startDate, endDate, searchQuery, initiativeFilter, familyFilter, typeFilter, verticalFilter]);
 
   const { stats, aggregations } = processedData;
@@ -936,6 +953,7 @@ export default function Dashboard() {
                     departmentData={aggregations.costBreakdownData.departmentData}
                     teamData={aggregations.costBreakdownData.teamData}
                   />
+                  <AIFinancialInsights contextData={processedData} />
                   <VerticalUsage data={aggregations.verticalUsageData} />
                 </div>
               )}

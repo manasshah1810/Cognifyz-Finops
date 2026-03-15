@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Shield, Share2, Users, AlertTriangle, Info, X, CheckCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 
 interface ModelPortfolioProps {
     data: {
@@ -115,7 +115,7 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
         fetchRecommendation(model);
     };
 
-    if (!data) return null;
+    if (!data || !data.modelStats || !data.familyMixData || !data.initiatives) return null;
 
     const { modelStats, familyMixData, kpis, initiatives } = data;
     const colors = ['#38bdf8', '#818cf8', '#fb7185', '#34d399', '#fbbf24', '#ef4444', '#06b6d4', '#ec4899', '#f97316'];
@@ -249,7 +249,28 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
                                             itemStyle={{ fontSize: '11px', fontWeight: '500' }}
                                         />
                                         {initiatives.map((init, i) => (
-                                            <Bar key={init} dataKey={init} stackId="a" fill={colors[i % colors.length]} radius={i === initiatives.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+                                            <Bar key={init} dataKey={init} stackId="a" fill={colors[i % colors.length]} radius={i === initiatives.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}>
+                                                <LabelList
+                                                    dataKey={init}
+                                                    position="center"
+                                                    content={(props: any) => {
+                                                        const { x, y, width, height, value } = props;
+                                                        if (!value || value < 10) return null; // Hide small labels to prevent clutter
+                                                        return (
+                                                            <text
+                                                                x={x + width / 2}
+                                                                y={y + height / 2}
+                                                                fill="#fff"
+                                                                textAnchor="middle"
+                                                                dominantBaseline="middle"
+                                                                style={{ fontSize: '8px', fontWeight: 'bold' }}
+                                                            >
+                                                                {value.toFixed(0)}%
+                                                            </text>
+                                                        );
+                                                    }}
+                                                />
+                                            </Bar>
                                         ))}
                                     </BarChart>
                                 </ResponsiveContainer>
