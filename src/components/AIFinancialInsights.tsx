@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Sparkles, Brain, RefreshCw, AlertCircle, TrendingUp, Target, Zap } from 'lucide-react';
+import { useTheme } from './ThemeProvider';
 
 interface AIFinancialInsightsProps {
     contextData: any;
@@ -14,6 +15,8 @@ interface Insight {
 }
 
 export const AIFinancialInsights: React.FC<AIFinancialInsightsProps> = ({ contextData }) => {
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
     const [insights, setInsights] = useState<Insight[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -31,7 +34,7 @@ export const AIFinancialInsights: React.FC<AIFinancialInsightsProps> = ({ contex
             };
 
             const prompt = `
-                You are a Senior FinOps Strategy Consultant. Analyze the following ML Attribution data and provide 4 high-impact AI-driven financial insights.
+                You are a Senior Finops Strategy Consultant. Analyze the following ML Attribution data and provide 4 high-impact AI-driven financial insights.
                 
                 Data:
                 ${JSON.stringify(simplifiedContext, null, 2)}
@@ -54,17 +57,15 @@ export const AIFinancialInsights: React.FC<AIFinancialInsightsProps> = ({ contex
                 Provide ONLY the JSON array. No preamble.
             `;
 
-            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            const response = await fetch("/api/chat", {
                 method: "POST",
                 headers: {
-                    "Authorization": `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_API_KEY}`,
-                    "Content-Type": "application/json",
-                    "X-OpenRouter-Title": "Cognifyz FinOps Dashboard"
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    "model": "stepfun/step-3.5-flash:free",
+                    "model": "claude-sonnet-4-6",
+                    "system": "You are a Finops expert who provides data-driven financial insights in JSON format.",
                     "messages": [
-                        { "role": "system", "content": "You are a FinOps expert who provides data-driven financial insights in JSON format." },
                         { "role": "user", "content": prompt }
                     ]
                 })
@@ -75,7 +76,6 @@ export const AIFinancialInsights: React.FC<AIFinancialInsightsProps> = ({ contex
             const result = await response.json();
             const content = result.choices?.[0]?.message?.content || "[]";
 
-            // Extract JSON if model adds markdown
             const jsonStr = content.includes("[") ? content.substring(content.indexOf("["), content.lastIndexOf("]") + 1) : content;
             const parsed = JSON.parse(jsonStr);
 
@@ -86,8 +86,7 @@ export const AIFinancialInsights: React.FC<AIFinancialInsightsProps> = ({ contex
             }
         } catch (err: any) {
             console.error("Insight generation error:", err);
-            setError("Could not generate dynamic insights. Please check your API configuration.");
-            // Fallback to placeholders if AI fails
+            setError("Could not generate dynamic insights. Please check your Anthropic API configuration.");
             setInsights([
                 { title: "Vertical Concentration", description: "Review if the current cost concentration in dominant verticals aligns with revenue targets.", type: "risk" },
                 { title: "Portfolio Balance", description: "The mix of dedicated vs shared models suggests opportunities for infrastructure consolidation.", type: "optimization" },
@@ -114,20 +113,20 @@ export const AIFinancialInsights: React.FC<AIFinancialInsightsProps> = ({ contex
     };
 
     return (
-        <div className="bg-[#0f172a] border border-slate-800 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group">
+        <div className="bg-[var(--card)] border border-[var(--card-border)] rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden group">
             {/* Background Decor */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 blur-[100px] -z-10" />
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--primary)]/5 blur-[100px] -z-10" />
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/5 blur-[100px] -z-10" />
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center border border-blue-500/20 shadow-lg shadow-blue-500/5">
-                        <Sparkles className="text-blue-400" size={24} />
+                    <div className="w-12 h-12 bg-[var(--primary-glow)] rounded-2xl flex items-center justify-center border border-[var(--primary)]/20 shadow-sm transition-colors duration-500">
+                        <Sparkles className="text-[var(--primary)]" size={24} />
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-white uppercase tracking-[0.2em]">AI Finance Insights</h3>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1.5 flex items-center gap-2">
-                            Real-time strategic analysis powered by OpenRouter
+                        <h3 className="text-lg font-bold text-[var(--foreground)] uppercase tracking-[0.2em]">Claude Finance Insights</h3>
+                        <p className="text-[10px] text-[var(--muted)] font-bold uppercase tracking-widest mt-1.5 flex items-center gap-2">
+                            Real-time strategic analysis powered by Claude 3.5 Haiku
                         </p>
                     </div>
                 </div>
@@ -135,7 +134,7 @@ export const AIFinancialInsights: React.FC<AIFinancialInsightsProps> = ({ contex
                 <button
                     onClick={generateInsights}
                     disabled={isLoading}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-300 transition-all hover:text-white disabled:opacity-50 group/btn"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-[var(--card-hover)] hover:bg-[var(--primary-glow)] border border-[var(--card-border)] rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--muted)] transition-all hover:text-[var(--primary)] disabled:opacity-50 group/btn"
                 >
                     <RefreshCw size={14} className={`${isLoading ? 'animate-spin' : 'group-hover/btn:rotate-180 transition-transform duration-500'}`} />
                     {isLoading ? 'Analyzing...' : 'Refresh Insights'}
@@ -144,8 +143,8 @@ export const AIFinancialInsights: React.FC<AIFinancialInsightsProps> = ({ contex
 
             {error && (
                 <div className="mb-8 p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center gap-3">
-                    <AlertCircle className="text-rose-400 flex-shrink-0" size={18} />
-                    <p className="text-[11px] font-bold text-rose-300 uppercase tracking-wide">{error}</p>
+                    <AlertCircle className="text-rose-500 flex-shrink-0" size={18} />
+                    <p className="text-[11px] font-bold text-rose-500 uppercase tracking-wide">{error}</p>
                 </div>
             )}
 
@@ -153,20 +152,20 @@ export const AIFinancialInsights: React.FC<AIFinancialInsightsProps> = ({ contex
                 {isLoading && insights.length === 0 ? (
                     Array(4).fill(0).map((_, i) => (
                         <div key={i} className="animate-pulse space-y-4">
-                            <div className="h-4 w-32 bg-slate-800 rounded" />
-                            <div className="h-20 w-full bg-slate-800/50 rounded-2xl" />
+                            <div className="h-4 w-32 bg-[var(--card-border)] rounded" />
+                            <div className="h-20 w-full bg-[var(--card-hover)]/30 rounded-2xl" />
                         </div>
                     ))
                 ) : (
                     insights.map((insight, i) => (
-                        <div key={i} className="relative p-6 bg-slate-900/40 border border-slate-800/50 rounded-3xl hover:border-blue-500/30 transition-all hover:bg-slate-900/60 group/card">
+                        <div key={i} className="relative p-6 bg-[var(--card-hover)]/50 border border-[var(--card-border)] rounded-3xl hover:border-[var(--primary)]/50 transition-all hover:bg-[var(--card)] group/card duration-300">
                             <div className="flex items-center justify-between mb-4">
-                                <h4 className="text-[11px] font-black text-blue-400 uppercase tracking-[0.15em]">{insight.title}</h4>
-                                <div className="p-2 bg-slate-800/50 rounded-lg border border-slate-700 group-hover/card:border-blue-500/30 transition-all">
+                                <h4 className="text-[11px] font-black text-[var(--primary)] uppercase tracking-[0.15em]">{insight.title}</h4>
+                                <div className="p-2 bg-[var(--card)] rounded-lg border border-[var(--card-border)] group-hover/card:border-[var(--primary)]/30 transition-all">
                                     {getIcon(insight.type)}
                                 </div>
                             </div>
-                            <p className="text-[13px] text-slate-400 leading-relaxed font-medium">
+                            <p className="text-[13px] text-[var(--foreground)]/80 leading-relaxed font-medium">
                                 {insight.description}
                             </p>
                         </div>
@@ -174,14 +173,15 @@ export const AIFinancialInsights: React.FC<AIFinancialInsightsProps> = ({ contex
                 )}
             </div>
 
-            <div className="mt-10 pt-6 border-t border-slate-800/50 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-[9px] font-black text-slate-600 uppercase tracking-widest">
+            <div className="mt-10 pt-6 border-t border-[var(--card-border)] flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[9px] font-black text-[var(--muted)] uppercase tracking-widest">
                     <Brain size={12} /> Model: Step-3.5-Flash
                 </div>
-                <div className="text-[9px] font-black text-slate-600 uppercase tracking-widest">
+                <div className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest">
                     Last Updated: {new Date().toLocaleTimeString()}
                 </div>
             </div>
         </div>
     );
 };
+

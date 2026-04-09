@@ -15,6 +15,9 @@ import { AIFinancialInsights } from '@/components/AIFinancialInsights';
 import Papa from 'papaparse';
 import { Wallet, PieChart, AlertCircle, Server, Database, LayoutDashboard, BarChart3, Settings, LogOut, Menu, X, Bot, BookOpen, Search, Upload, Info, DollarSign } from 'lucide-react';
 import { UploadPage } from '@/components/UploadPage';
+import { useTheme } from '@/components/ThemeProvider';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { BRAND_CONFIG, getBrand } from '@/config/branding';
 
 interface CloudBillRow {
   UsageStartDate: string;
@@ -32,6 +35,9 @@ interface AttributionMapRow {
 }
 
 export default function Dashboard() {
+  const currentBrand = getBrand();
+  // ... (keeping only one brand variable in scope)
+
   const [cloudBill, setCloudBill] = useState<CloudBillRow[]>([]);
   const [attributionMap, setAttributionMap] = useState<AttributionMapRow[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -47,6 +53,7 @@ export default function Dashboard() {
   const [isDataReady, setIsDataReady] = useState(true);
   const [dataSource, setDataSource] = useState<'demo' | 'user'>('demo');
   const [isPending, startTransition] = React.useTransition();
+  const { theme } = useTheme();
 
   const filesLoaded = {
     bill: cloudBill.length > 0,
@@ -558,7 +565,26 @@ export default function Dashboard() {
       }
     };
 
-    return { stats, startDate, endDate, aggregations: { costTrendData, verticalUsageData, costBreakdownData, modelPortfolioData, attributionData, initiativeSet: Array.from(initiativeSet).sort().slice(0, 8) } };
+    return {
+      stats,
+      startDate,
+      endDate,
+      filters: {
+        initiative: initiativeFilter,
+        family: familyFilter,
+        type: typeFilter,
+        vertical: verticalFilter,
+        search: searchQuery
+      },
+      aggregations: {
+        costTrendData,
+        verticalUsageData,
+        costBreakdownData,
+        modelPortfolioData,
+        attributionData,
+        initiativeSet: Array.from(initiativeSet).sort().slice(0, 8)
+      }
+    };
   }, [cloudBill, attributionMap, startDate, endDate, searchQuery, initiativeFilter, familyFilter, typeFilter, verticalFilter]);
 
   const { stats, aggregations } = processedData;
@@ -651,9 +677,9 @@ export default function Dashboard() {
     return (
       <div className="flex flex-wrap gap-2 mb-6 animate-in fade-in slide-in-from-top-2 duration-300">
         {chips.map((chip, idx) => (
-          <div key={idx} className="flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-full">
-            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">{chip.label}</span>
-            <button onClick={chip.clear} className="text-blue-400/50 hover:text-blue-400 transition-colors">
+          <div key={idx} className="flex items-center gap-2 px-3 py-1 bg-[var(--primary-glow)] border border-[var(--primary)]/10 rounded-full">
+            <span className="text-[10px] font-bold text-[var(--primary)] uppercase tracking-wider">{chip.label}</span>
+            <button onClick={chip.clear} className="text-[var(--primary)]/50 hover:text-[var(--primary)] transition-colors">
               <X size={12} strokeWidth={3} />
             </button>
           </div>
@@ -662,7 +688,7 @@ export default function Dashboard() {
           onClick={() => {
             setInitiativeFilter('all'); setFamilyFilter('all'); setTypeFilter('all'); setVerticalFilter('all'); setSearchQuery('');
           }}
-          className="text-[10px] font-bold text-slate-500 hover:text-slate-300 uppercase tracking-wider px-2"
+          className="text-[10px] font-bold text-[var(--muted)] hover:text-[var(--foreground)] uppercase tracking-wider px-2"
         >
           Clear All
         </button>
@@ -672,41 +698,41 @@ export default function Dashboard() {
 
   const renderGlobalFilters = () => (
     <div className="space-y-4 mb-8">
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4 bg-[#0f172a]/80 backdrop-blur-xl border border-slate-800/50 p-4 lg:p-2 pl-4 lg:pl-6 rounded-[2rem] shadow-2xl relative z-30">
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4 bg-[var(--glass-bg)] backdrop-blur-xl border border-[var(--glass-border)] p-4 lg:p-2 pl-4 lg:pl-6 rounded-[2rem] shadow-xl relative z-30 transition-all duration-500">
         {/* Search Input */}
         <div className="flex-1 flex items-center gap-3 min-w-[240px]">
-          <Search size={18} className="text-slate-500" />
+          <Search size={18} className="text-[var(--muted)]" />
           <input
             type="text"
             placeholder="Search models, initiatives, or families..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-transparent border-none text-sm font-medium text-slate-200 placeholder:text-slate-600 focus:ring-0"
+            className="w-full bg-transparent border-none text-sm font-medium text-[var(--foreground)] placeholder:text-[var(--muted)] focus:ring-0"
           />
         </div>
 
-        <div className="hidden lg:block h-8 w-[1px] bg-slate-800/50 mx-2" />
+        <div className="hidden lg:block h-8 w-[1px] bg-[var(--card-border)] mx-2" />
 
         {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Date Picker Group */}
-          <div className="flex items-center bg-slate-900/50 rounded-2xl border border-slate-800 p-1 group hover:border-blue-500/30 transition-all">
-            <div className="flex items-center px-3 py-1.5 gap-2 border-r border-slate-800">
-              <span className="text-[10px] font-black text-slate-500 uppercase">From</span>
+          <div className="flex items-center bg-[var(--sidebar-hover)] rounded-2xl border border-[var(--card-border)] p-1 group hover:border-[var(--primary)]/30 transition-all">
+            <div className="flex items-center px-3 py-1.5 gap-2 border-r border-[var(--card-border)]">
+              <span className="text-[10px] font-black text-[var(--muted)] uppercase">From</span>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="bg-transparent border-none text-[10px] font-bold text-slate-300 focus:ring-0 p-0 w-24 [color-scheme:dark]"
+                className="bg-transparent border-none text-[10px] font-bold text-[var(--foreground)] focus:ring-0 p-0 w-24 [color-scheme:light]"
               />
             </div>
             <div className="flex items-center px-3 py-1.5 gap-2">
-              <span className="text-[10px] font-black text-slate-500 uppercase">To</span>
+              <span className="text-[10px] font-black text-[var(--muted)] uppercase">To</span>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="bg-transparent border-none text-[10px] font-bold text-slate-300 focus:ring-0 p-0 w-24 [color-scheme:dark]"
+                className="bg-transparent border-none text-[10px] font-bold text-[var(--foreground)] focus:ring-0 p-0 w-24 [color-scheme:light]"
               />
             </div>
           </div>
@@ -717,54 +743,54 @@ export default function Dashboard() {
             <select
               value={initiativeFilter}
               onChange={(e) => setInitiativeFilter(e.target.value)}
-              className="appearance-none bg-[#1e293b] border border-slate-700 hover:border-blue-500/50 text-[10px] font-bold text-slate-300 uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-lg"
+              className="appearance-none bg-[var(--sidebar-hover)] border border-[var(--card-border)] hover:border-[var(--primary)]/50 text-[10px] font-bold text-[var(--foreground)] uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-sm"
             >
               <option value="all">Every Initiative</option>
               {aggregations?.attributionData.initiatives.map((i: string) => (
                 <option key={i} value={i}>{i}</option>
               ))}
             </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><Settings size={12} /></div>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--muted)]"><Settings size={12} /></div>
           </div>
 
           <div className="relative group">
             <select
               value={familyFilter}
               onChange={(e) => setFamilyFilter(e.target.value)}
-              className="appearance-none bg-[#1e293b] border border-slate-700 hover:border-blue-500/50 text-[10px] font-bold text-slate-300 uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-lg"
+              className="appearance-none bg-[var(--sidebar-hover)] border border-[var(--card-border)] hover:border-[var(--primary)]/50 text-[10px] font-bold text-[var(--foreground)] uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-sm"
             >
               {aggregations?.attributionData.families.map((f: string) => (
                 <option key={f} value={f === 'All' ? 'all' : f}>{f}</option>
               ))}
             </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><Database size={12} /></div>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--muted)]"><Database size={12} /></div>
           </div>
 
           <div className="relative group">
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="appearance-none bg-[#1e293b] border border-slate-700 hover:border-blue-500/50 text-[10px] font-bold text-slate-300 uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-lg"
+              className="appearance-none bg-[var(--sidebar-hover)] border border-[var(--card-border)] hover:border-[var(--primary)]/50 text-[10px] font-bold text-[var(--foreground)] uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-sm"
             >
               <option value="all">Global Type</option>
               <option value="dedicated">Dedicated Only</option>
               <option value="shared">Shared Models</option>
             </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><PieChart size={12} /></div>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--muted)]"><PieChart size={12} /></div>
           </div>
 
           <div className="relative group">
             <select
               value={verticalFilter}
               onChange={(e) => setVerticalFilter(e.target.value)}
-              className="appearance-none bg-[#1e293b] border border-slate-700 hover:border-blue-500/50 text-[10px] font-bold text-slate-300 uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-lg"
+              className="appearance-none bg-[var(--sidebar-hover)] border border-[var(--card-border)] hover:border-[var(--primary)]/50 text-[10px] font-bold text-[var(--foreground)] uppercase tracking-wider rounded-2xl px-5 py-3 pr-10 focus:outline-none transition-all cursor-pointer shadow-sm"
             >
               <option value="all">All Segments</option>
               <option value="cc">Credit Card</option>
               <option value="pl">Personal Loans</option>
               <option value="ins">Insurance</option>
             </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><LayoutDashboard size={12} /></div>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--muted)]"><LayoutDashboard size={12} /></div>
           </div>
 
         </div>
@@ -774,24 +800,34 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="flex h-screen bg-[#020617] text-slate-200 overflow-hidden font-sans">
+    <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden font-sans transition-colors duration-500">
       {/* Sidebar */}
       <aside
         className={`${isSidebarOpen ? 'w-64' : 'w-20'
-          } bg-[#0f172a] border-r border-slate-800 transition-all duration-300 flex flex-col z-50`}
+          } bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] transition-all duration-500 flex flex-col z-50`}
       >
         <div className="p-6 flex items-center gap-4">
           <div className="flex-shrink-0">
-            <img
-              src="/logo.png"
-              className="w-12 h-12 object-contain"
-              alt="Cogniify Logo"
-            />
+            {currentBrand.logoSrc ? (
+              <img
+                src={currentBrand.logoSrc}
+                alt={`${currentBrand.name} logo`}
+                className="w-12 h-12 rounded object-contain"
+              />
+            ) : (
+              <div className="w-12 h-12 flex items-center justify-center bg-[var(--primary)] rounded font-black text-sm text-white">
+                {currentBrand.logoText || "FO"}
+              </div>
+            )}
           </div>
           {isSidebarOpen && (
             <div className="flex flex-col">
-              <span className="font-black text-sm tracking-[0.1em] text-white uppercase leading-none">Cogniify Finops</span>
-              <span className="font-bold text-[8px] tracking-[0.2em] text-blue-400 uppercase mt-1">ML Attribution System</span>
+              <span className="font-black text-sm tracking-[0.1em] text-[var(--foreground)] uppercase leading-none">
+                {currentBrand.name.split(' ')[0]}
+              </span>
+              <span className="font-bold text-[8px] tracking-[0.2em] text-[var(--primary)] uppercase mt-1">
+                {currentBrand.subtitle || "ML Attribution System"}
+              </span>
             </div>
           )}
         </div>
@@ -801,12 +837,12 @@ export default function Dashboard() {
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${activeTab === item.id
-                ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group ${activeTab === item.id
+                ? 'bg-[var(--primary-glow)] text-[var(--primary)] border border-[var(--primary)]/20 shadow-sm'
+                : 'text-[var(--muted)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--foreground)]'
                 }`}
             >
-              <div className={`${activeTab === item.id ? 'text-blue-400' : 'text-slate-500 group-hover:text-slate-300'}`}>
+              <div className={`${activeTab === item.id ? 'text-[var(--primary)]' : 'text-[var(--muted)] group-hover:text-[var(--foreground)]'}`}>
                 {item.icon}
               </div>
               {isSidebarOpen && <span className="text-xs font-bold uppercase tracking-wider">{item.label}</span>}
@@ -814,10 +850,19 @@ export default function Dashboard() {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-slate-800">
+        <div className="p-4 border-t border-[var(--sidebar-border)] space-y-2">
+          <div className="flex items-center gap-2 mb-2">
+            <ThemeToggle />
+            {isSidebarOpen && (
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase text-[var(--muted)]">Appearance</span>
+                <span className="text-[10px] font-bold text-[var(--foreground)]">{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => setIsChatOpen(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 text-blue-400 hover:text-blue-300 hover:bg-blue-500/5 rounded-xl transition-all group"
+            className="w-full flex items-center gap-3 px-4 py-3 text-[var(--primary)] hover:bg-[var(--primary-glow)] rounded-xl transition-all duration-300 group"
           >
             <Bot size={18} className="group-hover:scale-110 transition-transform" />
             {isSidebarOpen && <span className="text-xs font-bold uppercase tracking-wider">AI Assistant</span>}
@@ -826,12 +871,12 @@ export default function Dashboard() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[#020617]">
+      <main className="flex-1 flex flex-col min-w-0 bg-[var(--background)] transition-colors duration-500">
         {/* Floating Controls */}
         <div className="fixed top-6 left-[inherit] z-50 flex items-center px-8 w-full pointer-events-none">
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-2.5 bg-[#0f172a]/80 backdrop-blur-md border border-slate-800/50 hover:bg-slate-800 rounded-xl text-slate-400 transition-all pointer-events-auto shadow-xl"
+            className="p-2.5 bg-[var(--glass-bg)] backdrop-blur-md border border-[var(--glass-border)] hover:bg-[var(--sidebar-hover)] rounded-xl text-[var(--muted)] transition-all pointer-events-auto shadow-lg"
           >
             {isSidebarOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
@@ -839,23 +884,23 @@ export default function Dashboard() {
 
         {/* Floating Data Badge - Bottom Left */}
         <div className={`fixed bottom-8 z-50 transition-all duration-300 pointer-events-none ${isSidebarOpen ? 'left-72' : 'left-28'}`}>
-          <div className={`px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-3 backdrop-blur-md transition-all pointer-events-auto shadow-2xl animate-in slide-in-from-bottom-4 duration-500 ${dataSource === 'user'
-            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-            : 'bg-blue-500/10 border-blue-500/20 text-blue-400'
+          <div className={`px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-3 backdrop-blur-md transition-all pointer-events-auto shadow-md animate-in slide-in-from-bottom-4 duration-500 ${dataSource === 'user'
+            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
+            : 'bg-[var(--primary)]/10 border-[var(--primary)]/20 text-[var(--primary)]'
             }`}>
-            <div className={`w-1.5 h-1.5 rounded-full ${dataSource === 'user' ? 'bg-emerald-400 animate-pulse' : 'bg-blue-400'}`} />
+            <div className={`w-1.5 h-1.5 rounded-full ${dataSource === 'user' ? 'bg-emerald-500 animate-pulse' : 'bg-[var(--primary)]'}`} />
             {dataSource === 'user' ? 'Live User Data' : 'Demo Dataset'}
           </div>
         </div>
 
         {/* Loading Overlay */}
         {isPending && (
-          <div className="absolute inset-0 z-50 bg-[#020617]/50 backdrop-blur-sm flex items-center justify-center">
-            <div className="bg-[#0f172a] border border-slate-800 p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-4">
-              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(59,130,246,0.3)]" />
+          <div className="absolute inset-0 z-50 bg-[var(--background)]/50 backdrop-blur-sm flex items-center justify-center">
+            <div className="bg-[var(--card)] border border-[var(--card-border)] p-8 rounded-3xl shadow-xl flex flex-col items-center gap-4">
+              <div className="w-12 h-12 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin shadow-sm" />
               <div className="text-center">
-                <h3 className="text-sm font-bold text-white uppercase tracking-widest">Analyzing Datasets</h3>
-                <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Optimizing aggregations for large files</p>
+                <h3 className="text-sm font-bold text-[var(--foreground)] uppercase tracking-widest">Analyzing Datasets</h3>
+                <p className="text-[10px] text-[var(--muted)] mt-1 uppercase tracking-wide">Optimizing aggregations for large files</p>
               </div>
             </div>
           </div>
@@ -866,12 +911,12 @@ export default function Dashboard() {
             <UploadPage onUploadComplete={handleFullUpload} />
           ) : !stats || !aggregations ? (
             <div className="h-[70vh] flex flex-col items-center justify-center text-center space-y-6">
-              <div className="w-20 h-20 bg-[#0f172a] rounded-3xl flex items-center justify-center border border-slate-800 shadow-2xl glow-blue">
-                <Database className="text-blue-400" size={40} />
+              <div className="w-20 h-20 bg-[var(--sidebar-hover)] rounded-3xl flex items-center justify-center border border-[var(--card-border)] shadow-sm transition-all hover:border-[var(--primary)]/50">
+                <Database className="text-[var(--primary)]" size={40} />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white">Initializing Data...</h2>
-                <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto uppercase tracking-wide">
+                <h2 className="text-xl font-bold text-[var(--foreground)]">Initializing Data...</h2>
+                <p className="text-sm text-[var(--muted)] mt-2 max-w-md mx-auto uppercase tracking-wide">
                   Optimizing dashboard for analysis. Please wait.
                 </p>
               </div>
@@ -886,53 +931,53 @@ export default function Dashboard() {
 
                   {/* KPIs */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div className="kpi-card glow-blue">
+                    <div className="kpi-card">
                       <div className="flex justify-between items-start mb-4">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ownership Concentration</span>
-                        <div className="p-2 bg-blue-500/10 rounded-lg"><PieChart size={16} className="text-blue-400" /></div>
+                        <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Ownership Concentration</span>
+                        <div className="p-2 bg-[var(--primary-glow)] rounded-lg"><PieChart size={16} className="text-[var(--primary)]" /></div>
                       </div>
-                      <div className="text-3xl font-bold text-white tracking-tight">{stats.ownershipConcentration.toFixed(2)}%</div>
-                      <div className="mt-2 text-[10px] text-slate-500 font-medium uppercase tracking-wide">Models with ≥50% single ownership</div>
+                      <div className="text-3xl font-bold text-[var(--foreground)] tracking-tight">{stats.ownershipConcentration.toFixed(2)}%</div>
+                      <div className="mt-2 text-[10px] text-[var(--muted)] font-medium uppercase tracking-wide">Models with ≥50% single ownership</div>
                     </div>
 
-                    <div className="kpi-card glow-emerald">
+                    <div className="kpi-card">
                       <div className="flex justify-between items-start mb-4">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Dedicated Models</span>
-                        <div className="p-2 bg-emerald-500/10 rounded-lg"><Server size={16} className="text-emerald-400" /></div>
+                        <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Dedicated Models</span>
+                        <div className="p-2 bg-emerald-500/10 rounded-lg"><Server size={16} className="text-emerald-500" /></div>
                       </div>
-                      <div className="text-3xl font-bold text-white tracking-tight">{stats.dedicatedCount}</div>
-                      <div className="mt-2 text-[10px] text-slate-500 font-medium uppercase tracking-wide">{stats.dedicatedCount} of {stats.totalModels} models</div>
+                      <div className="text-3xl font-bold text-[var(--foreground)] tracking-tight">{stats.dedicatedCount}</div>
+                      <div className="mt-2 text-[10px] text-[var(--muted)] font-medium uppercase tracking-wide">{stats.dedicatedCount} of {stats.totalModels} models</div>
                     </div>
 
-                    <div className="kpi-card glow-purple">
+                    <div className="kpi-card">
                       <div className="flex justify-between items-start mb-4">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Shared Models</span>
-                        <div className="p-2 bg-purple-500/10 rounded-lg"><Database size={16} className="text-purple-400" /></div>
+                        <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Shared Models</span>
+                        <div className="p-2 bg-[var(--accent)]/10 rounded-lg"><Database size={16} className="text-[var(--accent)]" /></div>
                       </div>
-                      <div className="text-3xl font-bold text-white tracking-tight">{stats.sharedModelsPct.toFixed(2)}%</div>
-                      <div className="mt-2 text-[10px] text-slate-500 font-medium uppercase tracking-wide">{stats.sharedCount} models with 2+ owners</div>
+                      <div className="text-3xl font-bold text-[var(--foreground)] tracking-tight">{stats.sharedModelsPct.toFixed(2)}%</div>
+                      <div className="mt-2 text-[10px] text-[var(--muted)] font-medium uppercase tracking-wide">{stats.sharedCount} models with 2+ owners</div>
                     </div>
 
-                    <div className="kpi-card glow-blue">
+                    <div className="kpi-card">
                       <div className="flex justify-between items-start mb-4">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Attribution Stability</span>
-                        <div className="p-2 bg-blue-500/10 rounded-lg"><Settings size={16} className="text-blue-400" /></div>
+                        <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Attribution Stability</span>
+                        <div className="p-2 bg-[var(--primary-glow)] rounded-lg"><Settings size={16} className="text-[var(--primary)]" /></div>
                       </div>
-                      <div className="text-3xl font-bold text-white tracking-tight">{stats.attributionStability}%</div>
-                      <div className="mt-2 text-[10px] text-slate-500 font-medium uppercase tracking-wide">Stable attribution over time</div>
+                      <div className="text-3xl font-bold text-[var(--foreground)] tracking-tight">{stats.attributionStability}%</div>
+                      <div className="mt-2 text-[10px] text-[var(--muted)] font-medium uppercase tracking-wide">Stable attribution over time</div>
                     </div>
 
-                    <div className="kpi-card glow-blue col-span-1 md:col-span-2 lg:col-span-4">
+                    <div className="kpi-card border border-[var(--primary)]/20 bg-[var(--primary-glow)] p-8 rounded-3xl col-span-1 md:col-span-2 lg:col-span-4">
                       <div className="flex justify-between items-center">
                         <div>
-                          <span className="text-[10px] font-bold text-blue-400 uppercase tracking-[0.2em]">Filtered Total Spend</span>
-                          <div className="text-4xl font-black text-white tracking-tighter mt-1">{formatCurrency(stats.totalSpend)}</div>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-2 flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-[var(--primary)] uppercase tracking-[0.2em]">Filtered Total Spend</span>
+                          <div className="text-4xl font-black text-[var(--foreground)] tracking-tighter mt-1">{formatCurrency(stats.totalSpend)}</div>
+                          <p className="text-[10px] text-[var(--muted)] font-bold uppercase tracking-widest mt-2 flex items-center gap-2">
                             <Info size={12} /> This reflects cost after applying active filters and vertical scaling
                           </p>
                         </div>
-                        <div className="p-4 bg-blue-500/10 rounded-2xl border border-blue-500/20 shadow-2xl shadow-blue-500/10">
-                          <DollarSign size={32} className="text-blue-400" />
+                        <div className="p-4 bg-[var(--card)] rounded-2xl border border-[var(--card-border)] shadow-sm">
+                          <DollarSign size={32} className="text-[var(--primary)]" />
                         </div>
                       </div>
                     </div>

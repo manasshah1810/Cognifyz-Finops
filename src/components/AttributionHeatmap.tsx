@@ -14,39 +14,35 @@ export const AttributionHeatmap: React.FC<AttributionHeatmapProps> = ({ matrix }
     if (!matrix || !matrix.families || !matrix.initiatives) return null;
 
     const getHeatColor = (val: number) => {
-        if (val === 0) return 'bg-slate-900/50 text-slate-600 border-slate-800';
-        if (val < 20) return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-        if (val < 40) return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
-        if (val < 60) return 'bg-blue-500/30 text-blue-200 border-blue-500/40';
-        if (val < 80) return 'bg-blue-500/50 text-white border-blue-500/60 shadow-[0_0_10px_rgba(59,130,246,0.3)]';
-        return 'bg-blue-600 text-white border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.5)]';
+        if (val === 0) return 'bg-[var(--sidebar-hover)] text-[var(--muted)] border-[var(--card-border)]';
+        if (val < 20) return 'bg-[var(--primary)]/10 text-[var(--primary)] border-[var(--primary)]/20';
+        if (val < 40) return 'bg-[var(--primary)]/20 text-[var(--foreground)] border-[var(--primary)]/30';
+        if (val < 60) return 'bg-[var(--primary)]/40 text-white border-[var(--primary)]/50';
+        if (val < 80) return 'bg-[var(--primary)]/70 text-white border-[var(--primary)]/80 shadow-sm';
+        return 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-md';
     };
 
     return (
-        <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-6 shadow-2xl overflow-hidden hover:border-blue-500/30 transition-all">
+        <div className="bg-[var(--card)] border border-[var(--card-border)] rounded-xl p-6 shadow-sm overflow-hidden hover:border-[var(--primary)]/30 transition-all">
             <div className="mb-6">
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Attribution Heatmap</h3>
-                <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Initiative vs Model Family concentration</p>
+                <h3 className="text-sm font-bold text-[var(--foreground)] uppercase tracking-wider">Attribution Heatmap</h3>
+                <p className="text-[10px] text-[var(--muted)] mt-1 uppercase tracking-wide">Initiative vs Model Family concentration</p>
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full border-separate border-spacing-1">
                     <thead>
                         <tr>
-                            <th className="p-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-left">Initiative</th>
+                            <th className="p-2 text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider text-left">Initiative</th>
                             {matrix.families.map(f => (
-                                <th key={f} className="p-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center min-w-[100px]">{f}</th>
+                                <th key={f} className="p-2 text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider text-center min-w-[100px]">{f}</th>
                             ))}
                         </tr>
                     </thead>
                     <tbody>
                         {matrix.initiatives.map(init => (
                             <tr key={init}>
-                                <td className="p-2 text-xs font-bold text-slate-400 uppercase tracking-tight">{init}</td>
+                                <td className="p-2 text-xs font-bold text-[var(--muted)] uppercase tracking-tight">{init}</td>
                                 {matrix.families.map(family => {
-                                    // Note: In page.tsx we used familyInitiativeStats which is [family][init]
-                                    // But here we might need [init][family] or vice versa.
-                                    // Let's check how it was calculated in page.tsx.
-                                    // familyInitiativeStats[family][init]
                                     const stats = matrix.data[family]?.[init];
                                     const val = stats ? stats.sum / stats.count : 0;
                                     return (
@@ -65,3 +61,4 @@ export const AttributionHeatmap: React.FC<AttributionHeatmapProps> = ({ matrix }
         </div>
     );
 };
+

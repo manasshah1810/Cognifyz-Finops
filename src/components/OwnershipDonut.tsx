@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { Info } from 'lucide-react';
+import { useTheme } from './ThemeProvider';
 
 interface OwnershipDonutProps {
     data: {
@@ -13,23 +14,30 @@ interface OwnershipDonutProps {
 }
 
 export const OwnershipDonut: React.FC<OwnershipDonutProps> = ({ data }) => {
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
+
     const chartData = [
-        { name: 'Dedicated', value: data.dedicated, color: '#38bdf8' },
-        { name: 'Shared', value: data.shared, color: '#818cf8' },
-        { name: 'Unassigned', value: data.unassigned, color: '#334155' },
+        { name: 'Dedicated', value: data.dedicated, color: isDark ? '#60a5fa' : '#0ea5e9' },
+        { name: 'Shared', value: data.shared, color: isDark ? '#818cf8' : '#6366f1' },
+        { name: 'Unassigned', value: data.unassigned, color: isDark ? '#1f2937' : '#e2e8f0' },
     ];
 
+    const tooltipBg = isDark ? '#0d1117' : '#ffffff';
+    const tooltipBorder = isDark ? '#1f2937' : '#e2e8f0';
+    const tooltipText = isDark ? '#f1f5f9' : '#0f172a';
+
     return (
-        <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-6 shadow-2xl h-[400px] hover:border-blue-500/30 transition-all group relative">
+        <div className="bg-[var(--card)] border border-[var(--card-border)] rounded-xl p-6 shadow-sm h-[400px] hover:border-[var(--primary)]/50 transition-all duration-300 group relative">
             <div className="flex justify-between items-start mb-6">
                 <div>
-                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">Model Ownership Mix</h3>
-                    <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Distribution of model reuse patterns</p>
+                    <h3 className="text-sm font-bold text-[var(--foreground)] uppercase tracking-wider">Model Ownership Mix</h3>
+                    <p className="text-[10px] text-[var(--muted)] mt-1 uppercase tracking-wide">Distribution of model reuse patterns</p>
                 </div>
                 <div className="relative group/info">
-                    <Info size={16} className="text-slate-500 hover:text-blue-400 cursor-help transition-colors" />
-                    <div className="absolute right-0 top-6 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-10 text-[10px] text-slate-300 leading-relaxed">
-                        <p className="font-bold text-blue-400 mb-1">Chart Information</p>
+                    <Info size={16} className="text-[var(--muted)] hover:text-[var(--primary)] cursor-help transition-colors" />
+                    <div className="absolute right-0 top-6 w-64 p-3 bg-[var(--card)] border border-[var(--card-border)] rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-10 text-[10px] text-[var(--foreground)] leading-relaxed font-normal normal-case tracking-normal">
+                        <p className="font-bold text-[var(--primary)] mb-1">Chart Information</p>
                         This donut chart shows the distribution of model ownership patterns, categorized into Dedicated, Shared, and Unassigned resources.
                     </div>
                 </div>
@@ -50,17 +58,16 @@ export const OwnershipDonut: React.FC<OwnershipDonutProps> = ({ data }) => {
                             <Cell
                                 key={`cell-${index}`}
                                 fill={entry.color}
-                                className="drop-shadow-[0_0_8px_rgba(56,189,248,0.3)]"
                             />
                         ))}
                     </Pie>
                     <Tooltip
-                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', color: '#f8fafc' }}
-                        itemStyle={{ fontSize: '11px', fontWeight: '500', color: '#fff' }}
+                        contentStyle={{ backgroundColor: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: '8px', color: tooltipText }}
+                        itemStyle={{ fontSize: '11px', fontWeight: '500', color: tooltipText }}
                     />
-
                 </PieChart>
             </ResponsiveContainer>
         </div>
     );
 };
+

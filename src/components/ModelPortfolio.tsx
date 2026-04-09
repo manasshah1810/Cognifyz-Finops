@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Shield, Share2, Users, AlertTriangle, Info, X, CheckCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
+import { useTheme } from './ThemeProvider';
 
 interface ModelPortfolioProps {
     data: {
@@ -21,6 +22,7 @@ interface ModelPortfolioProps {
 }
 
 export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
+    const { theme } = useTheme();
     const [activeSubTab, setActiveSubTab] = useState('profiles');
     const [selectedModel, setSelectedModel] = useState<any | null>(null);
     const [aiRecommendation, setAiRecommendation] = useState<{ problem: string[], solution: string[] } | null>(null);
@@ -30,8 +32,6 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
     const [riskTypeFilter, setRiskTypeFilter] = useState('All');
     const [riskCurrentPage, setRiskCurrentPage] = useState(1);
     const itemsPerPage = 10;
-
-    // ... logic below for fetchRecommendation remains unchanged ...
 
     const fetchRecommendation = async (model: any) => {
         setIsRecommendationLoading(true);
@@ -58,18 +58,15 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
         `;
 
         try {
-            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            const response = await fetch("/api/chat", {
                 method: "POST",
                 headers: {
-                    "Authorization": `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_API_KEY}`,
-                    "HTTP-Referer": "https://cognifyz-finops.vercel.app/",
-                    "X-OpenRouter-Title": "Cognifyz FinOps Suite",
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    "model": "arcee-ai/trinity-mini:free",
+                    "model": "claude-sonnet-4-6",
+                    "system": "You are a professional Finops ML Infrastructure Architect. You always output strict JSON with 'problem' and 'solution' arrays.",
                     "messages": [
-                        { "role": "system", "content": "You are a professional FinOps ML Infrastructure Architect. You always output strict JSON with 'problem' and 'solution' arrays." },
                         { "role": "user", "content": prompt }
                     ]
                 })
@@ -77,7 +74,7 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData?.error?.message || `Status ${response.status}`);
+                throw new Error(errorData?.error || `Status ${response.status}`);
             }
 
             const data = await response.json();
@@ -89,20 +86,20 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
 
             const parsed = JSON.parse(cleanContent);
             if (!parsed.problem || !parsed.solution) {
-                throw new Error("Invalid response structure from AI");
+                throw new Error("Invalid response structure from Claude");
             }
             setAiRecommendation(parsed);
         } catch (error: any) {
             console.error("AI Recommendation Error:", error);
             setAiRecommendation({
                 problem: [
-                    error.message.includes('429') ? "Rate Limit Exceeded (429)" : `API Error: ${error.message}`,
-                    "The OpenRouter free tier is currently limiting requests for this specific model."
+                    `Claude Error: ${error.message}`,
+                    "The integration might be facing connectivity issues or invalid API configuration."
                 ],
                 solution: [
-                    "Wait 1-2 minutes and try again.",
-                    "Ensure your API key is correctly configured in the .env file.",
-                    "Consider using a non-free model if prompt urgency is high."
+                    "Verify the VITE_ANTHROPIC_API_KEY in the .env file.",
+                    "Check the browser console for more detailed error logs.",
+                    "Ensure the backend /api/chat route is properly configured."
                 ]
             });
         }
@@ -137,35 +134,35 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
     return (
         <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="kpi-card glow-blue">
+                <div className="kpi-card border border-[var(--primary)]/10 bg-[var(--primary-glow)]">
                     <div className="flex justify-between items-start mb-4">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Dedicated</span>
-                        <div className="p-2 bg-blue-500/10 rounded-lg"><Shield size={16} className="text-blue-400" /></div>
+                        <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Dedicated</span>
+                        <div className="p-2 bg-[var(--primary)]/10 rounded-lg"><Shield size={16} className="text-[var(--primary)]" /></div>
                     </div>
-                    <div className="text-3xl font-bold text-white tracking-tight">{kpis.dedicated}</div>
-                    <div className="mt-2 text-[10px] text-slate-500 font-medium uppercase tracking-wide">{kpis.dedicatedPct.toFixed(1)}% of portfolio</div>
+                    <div className="text-3xl font-bold text-[var(--foreground)] tracking-tight">{kpis.dedicated}</div>
+                    <div className="mt-2 text-[10px] text-[var(--muted)] font-medium uppercase tracking-wide">{kpis.dedicatedPct.toFixed(1)}% of portfolio</div>
                 </div>
 
-                <div className="kpi-card glow-purple">
+                <div className="kpi-card border border-purple-500/10 bg-purple-500/5">
                     <div className="flex justify-between items-start mb-4">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Shared-Primary</span>
-                        <div className="p-2 bg-purple-500/10 rounded-lg"><Share2 size={16} className="text-purple-400" /></div>
+                        <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Shared-Primary</span>
+                        <div className="p-2 bg-purple-500/10 rounded-lg"><Share2 size={16} className="text-purple-500" /></div>
                     </div>
-                    <div className="text-3xl font-bold text-white tracking-tight">{kpis.primary}</div>
-                    <div className="mt-2 text-[10px] text-slate-500 font-medium uppercase tracking-wide">{kpis.primaryPct.toFixed(1)}% of portfolio</div>
+                    <div className="text-3xl font-bold text-[var(--foreground)] tracking-tight">{kpis.primary}</div>
+                    <div className="mt-2 text-[10px] text-[var(--muted)] font-medium uppercase tracking-wide">{kpis.primaryPct.toFixed(1)}% of portfolio</div>
                 </div>
 
-                <div className="kpi-card glow-emerald">
+                <div className="kpi-card border border-emerald-500/10 bg-emerald-500/5">
                     <div className="flex justify-between items-start mb-4">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Shared-Balanced</span>
-                        <div className="p-2 bg-emerald-500/10 rounded-lg"><Users size={16} className="text-emerald-400" /></div>
+                        <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Shared-Balanced</span>
+                        <div className="p-2 bg-emerald-500/10 rounded-lg"><Users size={16} className="text-emerald-500" /></div>
                     </div>
-                    <div className="text-3xl font-bold text-white tracking-tight">{kpis.balanced}</div>
-                    <div className="mt-2 text-[10px] text-slate-500 font-medium uppercase tracking-wide">{kpis.balancedPct.toFixed(1)}% of portfolio</div>
+                    <div className="text-3xl font-bold text-[var(--foreground)] tracking-tight">{kpis.balanced}</div>
+                    <div className="mt-2 text-[10px] text-[var(--muted)] font-medium uppercase tracking-wide">{kpis.balancedPct.toFixed(1)}% of portfolio</div>
                 </div>
             </div>
 
-            <div className="flex gap-2 p-1 bg-slate-900/50 w-fit rounded-xl border border-slate-800">
+            <div className="flex gap-2 p-1 bg-[var(--sidebar-hover)] w-fit rounded-xl border border-[var(--card-border)]">
                 {[
                     { id: 'profiles', label: 'Model Profiles' },
                     { id: 'mix', label: 'Family Attribution Mix' },
@@ -174,7 +171,7 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
                     <button
                         key={tab.id}
                         onClick={() => setActiveSubTab(tab.id)}
-                        className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${activeSubTab === tab.id ? 'bg-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'text-slate-500 hover:text-slate-300'}`}
+                        className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${activeSubTab === tab.id ? 'bg-[var(--primary)] text-white shadow-md' : 'text-[var(--muted)] hover:text-[var(--foreground)]'}`}
                     >
                         {tab.label}
                     </button>
@@ -184,34 +181,34 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
             {activeSubTab === 'profiles' && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {modelStats.slice(0, 12).map((model, i) => (
-                        <div key={i} className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 shadow-2xl space-y-4 hover:border-blue-500/30 transition-all">
+                        <div key={i} className="bg-[var(--card)] border border-[var(--card-border)] rounded-xl p-5 shadow-sm space-y-4 hover:border-[var(--primary)]/30 transition-all group">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <h4 className="text-xs font-bold text-white truncate max-w-[180px]">{model.name}</h4>
-                                    <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">{model.family}</p>
+                                    <h4 className="text-xs font-bold text-[var(--foreground)] truncate max-w-[180px]">{model.name}</h4>
+                                    <p className="text-[10px] text-[var(--muted)] font-medium uppercase tracking-wide">{model.family}</p>
                                 </div>
-                                <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest border ${model.type === 'Dedicated' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : model.type === 'Shared-Primary' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
+                                <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest border ${model.type === 'Dedicated' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : model.type === 'Shared-Primary' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
                                     {model.type}
                                 </span>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Owners</p>
-                                    <p className="text-sm font-bold text-white">{model.ownerCount}</p>
+                                    <p className="text-[8px] font-bold text-[var(--muted)] uppercase tracking-widest">Owners</p>
+                                    <p className="text-sm font-bold text-[var(--foreground)]">{model.ownerCount}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Max Attribution</p>
-                                    <p className="text-sm font-bold text-white">{model.maxAttr.toFixed(0)}%</p>
+                                    <p className="text-[8px] font-bold text-[var(--muted)] uppercase tracking-widest">Max Attribution</p>
+                                    <p className="text-sm font-bold text-[var(--foreground)]">{model.maxAttr.toFixed(0)}%</p>
                                 </div>
                             </div>
                             <div className="space-y-1.5">
-                                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                                    <div className="h-full bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" style={{ width: `${model.maxAttr}%` }} />
+                                <div className="w-full h-1.5 bg-[var(--sidebar-hover)] rounded-full overflow-hidden">
+                                    <div className="h-full bg-[var(--primary)] rounded-full transition-all duration-500" style={{ width: `${model.maxAttr}%` }} />
                                 </div>
                                 <div className="flex flex-wrap gap-x-3 gap-y-1">
                                     {Object.entries(model.owners).map(([owner, pct]) => (
-                                        <span key={owner} className="text-[9px] font-medium text-slate-400">
-                                            {owner}: <span className="text-white font-bold">{(pct as number).toFixed(0)}%</span>
+                                        <span key={owner} className="text-[9px] font-medium text-[var(--muted)]">
+                                            {owner}: <span className="text-[var(--foreground)] font-bold">{(pct as number).toFixed(0)}%</span>
                                         </span>
                                     ))}
                                 </div>
@@ -222,30 +219,35 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
             )}
 
             {activeSubTab === 'mix' && (
-                <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-6 shadow-2xl">
+                <div className="bg-[var(--card)] border border-[var(--card-border)] rounded-xl p-6 shadow-sm">
                     <div className="flex justify-between items-start mb-4">
-                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">Model Family Attribution Mix</h3>
+                        <h3 className="text-sm font-bold text-[var(--foreground)] uppercase tracking-wider">Model Family Attribution Mix</h3>
                         <div className="relative group/info">
-                            <Info size={16} className="text-slate-500 hover:text-blue-400 cursor-help transition-colors" />
-                            <div className="absolute right-0 top-6 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-10 text-[10px] text-slate-300 leading-relaxed font-normal normal-case tracking-normal">
-                                <p className="font-bold text-blue-400 mb-1">Chart Information</p>
+                            <Info size={16} className="text-[var(--muted)] hover:text-[var(--primary)] cursor-help transition-colors" />
+                            <div className="absolute right-0 top-6 w-64 p-3 bg-[var(--card)] border border-[var(--card-border)] rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-10 text-[10px] text-[var(--muted)] leading-relaxed font-normal normal-case tracking-normal">
+                                <p className="font-bold text-[var(--primary)] mb-1">Chart Information</p>
                                 Visualizes the composition of cost attribution for different model families across several business initiatives.
                             </div>
                         </div>
                     </div>
                     <div className="flex h-[400px]">
                         <div className="flex items-center -mr-2">
-                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest -rotate-90 whitespace-nowrap">Attribution Value</span>
+                            <span className="text-[9px] font-bold text-[var(--muted)] uppercase tracking-widest -rotate-90 whitespace-nowrap">Attribution Value</span>
                         </div>
                         <div className="flex-1 flex flex-col">
                             <div className="flex-1">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={familyMixData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                                        <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-                                        <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} width={40} />
+                                        <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#1e293b' : '#f1f5f9'} vertical={false} />
+                                        <XAxis dataKey="name" stroke={theme === 'dark' ? '#64748b' : '#94a3b8'} fontSize={10} tickLine={false} axisLine={false} />
+                                        <YAxis stroke={theme === 'dark' ? '#64748b' : '#94a3b8'} fontSize={10} tickLine={false} axisLine={false} width={40} />
                                         <Tooltip
-                                            contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', color: '#f8fafc' }}
+                                            contentStyle={{
+                                                backgroundColor: theme === 'dark' ? '#1e293b' : '#ffffff',
+                                                border: `1px solid ${theme === 'dark' ? '#334155' : '#e2e8f0'}`,
+                                                borderRadius: '8px',
+                                                color: theme === 'dark' ? '#f8fafc' : '#0f172a'
+                                            }}
                                             itemStyle={{ fontSize: '11px', fontWeight: '500' }}
                                         />
                                         {initiatives.map((init, i) => (
@@ -276,7 +278,7 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
                                 </ResponsiveContainer>
                             </div>
                             <div className="text-center mt-1">
-                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Model Family</span>
+                                <span className="text-[9px] font-bold text-[var(--muted)] uppercase tracking-widest">Model Family</span>
                             </div>
                         </div>
                     </div>
@@ -285,18 +287,18 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
 
             {activeSubTab === 'risk' && (
                 <div className="space-y-6">
-                    <div className="bg-[#0f172a] border border-slate-800 rounded-xl shadow-2xl overflow-hidden">
-                        <div className="p-6 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="bg-[var(--card)] border border-[var(--card-border)] rounded-xl shadow-sm overflow-hidden">
+                        <div className="p-6 border-b border-[var(--card-border)] flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div className="flex items-center gap-3">
                                 <AlertTriangle className="text-amber-500" size={20} />
                                 <div>
-                                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">High-Risk Models</h3>
-                                    <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Models with ≥3 initiatives and no single owner &gt;40%</p>
+                                    <h3 className="text-sm font-bold text-[var(--foreground)] uppercase tracking-wider">High-Risk Models</h3>
+                                    <p className="text-[10px] text-[var(--muted)] mt-1 uppercase tracking-wide">Models with ≥3 initiatives and no single owner &gt;40%</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 w-full md:w-auto">
                                 <div className="relative group min-w-[200px]">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={14} />
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] group-focus-within:text-[var(--primary)] transition-colors" size={14} />
                                     <input
                                         type="text"
                                         placeholder="Search models or families..."
@@ -305,7 +307,7 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
                                             setRiskSearchQuery(e.target.value);
                                             setRiskCurrentPage(1);
                                         }}
-                                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg py-2 pl-9 pr-4 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all"
+                                        className="w-full bg-[var(--sidebar-hover)] border border-[var(--card-border)] rounded-lg py-2 pl-9 pr-4 text-xs text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--primary)]/30 focus:ring-1 focus:ring-[var(--primary)]/10 transition-all"
                                     />
                                 </div>
                                 <select
@@ -314,7 +316,7 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
                                         setRiskFamilyFilter(e.target.value);
                                         setRiskCurrentPage(1);
                                     }}
-                                    className="bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-blue-500/50 cursor-pointer"
+                                    className="bg-[var(--sidebar-hover)] border border-[var(--card-border)] rounded-lg py-2 px-3 text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)]/30 cursor-pointer"
                                 >
                                     <option value="All">All Families</option>
                                     {Array.from(new Set(modelStats.map(m => m.family))).map(f => (
@@ -327,7 +329,7 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
                                         setRiskTypeFilter(e.target.value);
                                         setRiskCurrentPage(1);
                                     }}
-                                    className="bg-slate-900/50 border border-slate-700 rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-blue-500/50 cursor-pointer"
+                                    className="bg-[var(--sidebar-hover)] border border-[var(--card-border)] rounded-lg py-2 px-3 text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--primary)]/30 cursor-pointer"
                                 >
                                     <option value="All">All Types</option>
                                     <option value="Dedicated">Dedicated</option>
@@ -339,30 +341,30 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-slate-900/50">
-                                        <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Model Name</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Family</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Owners</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Max Attribution</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Initiatives</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">Action</th>
+                                    <tr className="bg-[var(--sidebar-hover)]/30">
+                                        <th className="px-6 py-4 text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Model Name</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Family</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider text-center">Owners</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider text-center">Max Attribution</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">Initiatives</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider text-right">Action</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-800">
+                                <tbody className="divide-y divide-[var(--card-border)]">
                                     {paginatedHighRiskModels.map((model, i) => (
-                                        <tr key={i} className="hover:bg-slate-800/30 transition-colors">
-                                            <td className="px-6 py-4 text-xs font-bold text-white">{model.name}</td>
-                                            <td className="px-6 py-4 text-xs text-slate-400">{model.family}</td>
+                                        <tr key={i} className="hover:bg-[var(--sidebar-hover)]/20 transition-colors">
+                                            <td className="px-6 py-4 text-xs font-bold text-[var(--foreground)]">{model.name}</td>
+                                            <td className="px-6 py-4 text-xs text-[var(--muted)]">{model.family}</td>
                                             <td className="px-6 py-4 text-center">
-                                                <span className="px-2 py-1 bg-amber-500/10 text-amber-400 text-[10px] font-bold rounded-md border border-amber-500/20">
+                                                <span className="px-2 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded-md border border-amber-500/20">
                                                     {model.ownerCount}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-center text-xs font-bold text-white">{model.maxAttr.toFixed(0)}%</td>
+                                            <td className="px-6 py-4 text-center text-xs font-bold text-[var(--foreground)]">{model.maxAttr.toFixed(0)}%</td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-wrap gap-2">
                                                     {Object.entries(model.owners).map(([owner, pct]) => (
-                                                        <span key={owner} className="text-[9px] font-medium text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
+                                                        <span key={owner} className="text-[9px] font-medium text-[var(--muted)] bg-[var(--sidebar-hover)] px-1.5 py-0.5 rounded">
                                                             {owner}: {(pct as number).toFixed(0)}%
                                                         </span>
                                                     ))}
@@ -371,7 +373,7 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
                                             <td className="px-6 py-4 text-right">
                                                 <button
                                                     onClick={() => handleModelClick(model)}
-                                                    className="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-wider rounded-lg border border-blue-500/20 transition-all hover:scale-105"
+                                                    className="px-3 py-1.5 bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 text-[var(--primary)] text-[10px] font-bold uppercase tracking-wider rounded-lg border border-[var(--primary)]/20 transition-all hover:scale-105"
                                                 >
                                                     Show Recommendations
                                                 </button>
@@ -381,25 +383,25 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
                                 </tbody>
                             </table>
                         </div>
-                        <div className="px-6 py-4 border-t border-slate-800 flex justify-between items-center bg-slate-900/30">
-                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        <div className="px-6 py-4 border-t border-[var(--card-border)] flex justify-between items-center bg-[var(--sidebar-hover)]/30">
+                            <div className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-widest">
                                 Showing {Math.min(highRiskModels.length, (riskCurrentPage - 1) * itemsPerPage + 1)}-{Math.min(highRiskModels.length, riskCurrentPage * itemsPerPage)} of {highRiskModels.length} models
                             </div>
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => setRiskCurrentPage(prev => Math.max(1, prev - 1))}
                                     disabled={riskCurrentPage === 1}
-                                    className={`p-1.5 rounded-lg border transition-all ${riskCurrentPage === 1 ? 'border-slate-800 text-slate-700' : 'border-slate-700 text-slate-400 hover:border-blue-500/50 hover:text-blue-400 hover:bg-blue-500/5'}`}
+                                    className={`p-1.5 rounded-lg border transition-all ${riskCurrentPage === 1 ? 'border-[var(--card-border)] text-[var(--muted)]' : 'border-[var(--card-border)] text-[var(--foreground)] hover:border-[var(--primary)]/50 hover:text-[var(--primary)] hover:bg-[var(--primary)]/5'}`}
                                 >
                                     <ChevronLeft size={16} />
                                 </button>
-                                <div className="flex items-center px-3 text-[10px] font-bold text-white">
+                                <div className="flex items-center px-3 text-[10px] font-bold text-[var(--foreground)]">
                                     {riskCurrentPage} / {riskTotalPages || 1}
                                 </div>
                                 <button
                                     onClick={() => setRiskCurrentPage(prev => Math.min(riskTotalPages, prev + 1))}
                                     disabled={riskCurrentPage === riskTotalPages || riskTotalPages === 0}
-                                    className={`p-1.5 rounded-lg border transition-all ${riskCurrentPage === riskTotalPages || riskTotalPages === 0 ? 'border-slate-800 text-slate-700' : 'border-slate-700 text-slate-400 hover:border-blue-500/50 hover:text-blue-400 hover:bg-blue-500/5'}`}
+                                    className={`p-1.5 rounded-lg border transition-all ${riskCurrentPage === riskTotalPages || riskTotalPages === 0 ? 'border-[var(--card-border)] text-[var(--muted)]' : 'border-[var(--card-border)] text-[var(--foreground)] hover:border-[var(--primary)]/50 hover:text-[var(--primary)] hover:bg-[var(--primary)]/5'}`}
                                 >
                                     <ChevronRight size={16} />
                                 </button>
@@ -407,12 +409,12 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
                         </div>
                     </div>
 
-                    <div className="bg-slate-900 text-white rounded-xl p-6 space-y-4 border border-blue-500/20">
+                    <div className="bg-[var(--sidebar-hover)] text-[var(--foreground)] rounded-xl p-6 space-y-4 border border-[var(--primary)]/20">
                         <div className="flex items-center gap-2">
-                            <Info size={18} className="text-blue-400" />
+                            <Info size={18} className="text-[var(--primary)]" />
                             <h4 className="text-xs font-bold uppercase tracking-widest">Engineering Actions Recommended</h4>
                         </div>
-                        <ul className="text-[10px] text-slate-400 space-y-2 list-disc pl-4 uppercase tracking-wider leading-relaxed">
+                        <ul className="text-[10px] text-[var(--muted)] space-y-2 list-disc pl-4 uppercase tracking-wider leading-relaxed">
                             <li>Review these models for consolidation opportunities</li>
                             <li>Consider platform-level ownership for widely-shared models</li>
                             <li>Evaluate if splitting into initiative-specific variants makes sense</li>
@@ -422,22 +424,22 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
             )}
 
             {selectedModel && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-[#0f172a] border border-slate-800 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-[var(--card)] border border-[var(--card-border)] w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-[var(--card-border)] flex justify-between items-center bg-[var(--sidebar-hover)]/30">
                             <div>
-                                <h3 className="text-lg font-bold text-white tracking-tight">Risk Analysis</h3>
-                                <p className="text-xs text-slate-500 font-mono mt-1">{selectedModel.name}</p>
+                                <h3 className="text-lg font-bold text-[var(--foreground)] tracking-tight">Risk Analysis</h3>
+                                <p className="text-xs text-[var(--muted)] font-mono mt-1">{selectedModel.name}</p>
                             </div>
-                            <button onClick={() => setSelectedModel(null)} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors">
+                            <button onClick={() => setSelectedModel(null)} className="p-2 hover:bg-[var(--sidebar-hover)] rounded-full text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
                                 <X size={20} />
                             </button>
                         </div>
                         <div className="p-6 space-y-6">
                             {isRecommendationLoading ? (
                                 <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
-                                    <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">Generating AI Recommendations...</p>
+                                    <div className="w-10 h-10 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+                                    <p className="text-xs font-bold text-[var(--muted)] uppercase tracking-widest animate-pulse">Generating AI Recommendations...</p>
                                 </div>
                             ) : aiRecommendation ? (
                                 <>
@@ -445,13 +447,13 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
                                         <h4 className="flex items-center gap-2 text-amber-500 font-bold uppercase text-xs tracking-wider">
                                             <AlertTriangle size={16} /> Problem Identification
                                         </h4>
-                                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-5">
-                                            <p className="text-slate-300 text-sm leading-relaxed mb-3">
+                                        <div className="bg-amber-500/5 border border-amber-500/10 rounded-xl p-5">
+                                            <p className="text-[var(--foreground)] text-sm leading-relaxed mb-3">
                                                 Analysis of {selectedModel.name} risk factors:
                                             </p>
                                             <ul className="space-y-2">
                                                 {aiRecommendation.problem.map((point, i) => (
-                                                    <li key={i} className="flex items-start gap-2 text-sm text-slate-400">
+                                                    <li key={i} className="flex items-start gap-2 text-sm text-[var(--muted)]">
                                                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 flex-shrink-0" />
                                                         <span>{point}</span>
                                                     </li>
@@ -463,13 +465,13 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
                                         <h4 className="flex items-center gap-2 text-emerald-500 font-bold uppercase text-xs tracking-wider">
                                             <CheckCircle size={16} /> Recommended Solution
                                         </h4>
-                                        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-5">
-                                            <p className="text-slate-300 text-sm leading-relaxed mb-3">
+                                        <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-5">
+                                            <p className="text-[var(--foreground)] text-sm leading-relaxed mb-3">
                                                 Suggested engineering actions:
                                             </p>
                                             <ul className="space-y-2">
                                                 {aiRecommendation.solution.map((point, i) => (
-                                                    <li key={i} className="flex items-start gap-2 text-sm text-slate-400">
+                                                    <li key={i} className="flex items-start gap-2 text-sm text-[var(--muted)]">
                                                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0" />
                                                         <span>{point}</span>
                                                     </li>
@@ -479,15 +481,15 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
                                     </div>
                                 </>
                             ) : (
-                                <div className="text-center py-8 text-slate-500 text-sm">
+                                <div className="text-center py-8 text-[var(--muted)] text-sm">
                                     Could not retrieve recommendations.
                                 </div>
                             )}
                         </div>
-                        <div className="p-4 border-t border-slate-800 bg-slate-900/50 flex justify-end">
+                        <div className="p-4 border-t border-[var(--card-border)] bg-[var(--sidebar-hover)]/30 flex justify-end">
                             <button
                                 onClick={() => setSelectedModel(null)}
-                                className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shadow-lg border border-slate-700"
+                                className="px-5 py-2.5 bg-[var(--card)] hover:bg-[var(--sidebar-hover)] text-[var(--foreground)] rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shadow-sm border border-[var(--card-border)]"
                             >
                                 Close Recommendations
                             </button>
@@ -498,3 +500,4 @@ export const ModelPortfolio: React.FC<ModelPortfolioProps> = ({ data }) => {
         </div>
     );
 };
+

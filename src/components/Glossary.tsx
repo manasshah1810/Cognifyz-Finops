@@ -50,31 +50,31 @@ export function Glossary() {
     ];
 
     return (
-        <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 lg:p-8 space-y-8">
-            <div className="flex items-center gap-4 border-b border-slate-800 pb-6">
-                <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center border border-blue-500/20">
-                    <BookOpen className="text-blue-400" size={24} />
+        <div className="bg-[var(--card)] border border-[var(--card-border)] rounded-3xl p-6 lg:p-8 space-y-8 shadow-sm">
+            <div className="flex items-center gap-4 border-b border-[var(--card-border)] pb-6">
+                <div className="w-12 h-12 bg-[var(--primary)]/10 rounded-2xl flex items-center justify-center border border-[var(--primary)]/20">
+                    <BookOpen className="text-[var(--primary)]" size={24} />
                 </div>
                 <div>
-                    <h2 className="text-xl font-bold text-white tracking-widest uppercase">System Glossary</h2>
-                    <p className="text-sm text-slate-500 mt-1">Detailed documentation for features, data structures, and AI models.</p>
+                    <h2 className="text-xl font-bold text-[var(--foreground)] tracking-widest uppercase">System Glossary</h2>
+                    <p className="text-sm text-[var(--muted)] mt-1">Detailed documentation for features, data structures, and AI models.</p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-12">
                 {sections.map((section, idx) => (
                     <div key={idx} className="space-y-6">
-                        <h3 className="text-lg font-bold text-slate-200 uppercase tracking-widest flex items-center gap-3">
-                            <div className="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                        <h3 className="text-lg font-bold text-[var(--foreground)] uppercase tracking-widest flex items-center gap-3">
+                            <div className="p-2 bg-[var(--sidebar-hover)] rounded-lg border border-[var(--card-border)]">
                                 {section.icon}
                             </div>
                             {section.title}
                         </h3>
                         <div className="space-y-4">
                             {section.items.map((item, itemIdx) => (
-                                <div key={itemIdx} className="bg-[#1e293b]/30 p-5 rounded-2xl border border-slate-800/50 hover:border-slate-700/80 transition-all group">
-                                    <h4 className="text-xs font-black text-blue-400 uppercase tracking-[0.15em] mb-2">{item.term}</h4>
-                                    <p className="text-sm text-slate-400 leading-relaxed font-medium">{item.desc}</p>
+                                <div key={itemIdx} className="bg-[var(--sidebar-hover)]/30 p-5 rounded-2xl border border-[var(--card-border)] hover:border-[var(--primary)]/30 transition-all group">
+                                    <h4 className="text-xs font-black text-[var(--primary)] uppercase tracking-[0.15em] mb-2">{item.term}</h4>
+                                    <p className="text-sm text-[var(--muted)] leading-relaxed font-medium group-hover:text-[var(--foreground)] transition-colors">{item.desc}</p>
                                 </div>
                             ))}
                         </div>
@@ -84,3 +84,4 @@ export function Glossary() {
         </div>
     );
 }
+
